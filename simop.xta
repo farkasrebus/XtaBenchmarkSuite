@@ -1,0 +1,195 @@
+const int PLCct = 5;
+const int NETd = 1;
+const int PLCmtt = 2;
+const int SIGmrt = 3;
+const int COMct = 5;
+const int RIOd = 1;
+const int COMd = 1;
+
+
+chan SIGout0;
+chan RNrep0;
+chan NRreq0;
+chan NRreq1;
+chan SIGout1;
+chan CNreq0;
+chan CNreq1;
+chan PLCout1;
+chan PLCout0;
+chan PLCbeg;
+chan SIGin1;
+chan NCrep1;
+chan NCrep0;
+chan COMin0;
+chan COMin1;
+chan RNrep1;
+
+clock yy;
+
+process PLC() {
+	clock PLCclk;
+
+	state
+		PLCinit,
+		PLC1 { PLCclk <= PLCct },
+		PLC3 { PLCclk <= PLCct },
+		PLC4 { PLCclk <= PLCct },
+		PLC5 { yy <= 0 },
+		PLC6 { PLCclk <= PLCct },
+		PLC7 { PLCclk <= PLCct },
+		PLC9 { PLCclk <= PLCct };
+
+	init PLCinit;
+
+	trans
+		PLC3 -> PLC1 { guard PLCclk == PLCct; assign PLCclk = 0; },
+		PLC1 -> PLC3 { guard PLCclk >= PLCmtt; sync PLCout0!; },
+		PLC7 -> PLC7 { sync COMin1?; },
+		PLC3 -> PLC3 { sync COMin0?; },
+		PLCinit -> PLC1 { sync PLCbeg!; assign PLCclk = 0; },
+		PLC5 -> PLC5 { sync COMin1?; },
+		PLC3 -> PLC6 { sync COMin1?; },
+		PLC7 -> PLC9 { guard PLCclk >= PLCmtt; sync PLCout1!; },
+		PLC9 -> PLC7 { guard PLCclk == PLCct; assign PLCclk = 0; },
+		PLC9 -> PLC9 { sync COMin1?; },
+		PLC4 -> PLC5 { guard PLCclk >= PLCmtt; assign yy = 0; },
+		PLC4 -> PLC4 { sync COMin1?; },
+		PLC5 -> PLC6 { guard yy == 0; sync PLCout0!; },
+		PLC6 -> PLC7 { guard PLCclk == PLCct; assign PLCclk = 0; },
+		PLC6 -> PLC6 { sync COMin1?; },
+		PLC1 -> PLC1 { sync COMin0?; };
+}
+process COM() {
+	clock tt;
+	clock COMclk;
+
+	state
+		COM11 { COMclk <= COMct },
+		COM12 { COMclk <= COMd },
+		COM13 { COMclk <= COMct },
+		COM14 { tt == 0 },
+		COM15 { COMclk <= COMct },
+		COMinit,
+		COM1,
+		COM2 { COMclk <= COMd },
+		COM3 { COMclk <= COMct },
+		COM4 { tt == 0 },
+		COM5 { tt == 0 },
+		COM6 { COMclk <= COMct },
+		COM7 { COMclk <= COMd },
+		COM8 { COMclk <= COMct },
+		COM9 { tt == 0 },
+		COM10 { tt == 0 };
+
+	init COMinit;
+
+	trans
+		COM2 -> COM3 { guard COMclk == COMd; sync CNreq0!; },
+		COM7 -> COM7 { sync PLCout1?; },
+		COM11 -> COM12 { guard COMclk == COMct; assign COMclk = 0; },
+		COM13 -> COM14 { sync NCrep1?; assign tt = 0; },
+		COMinit -> COM1 { sync PLCbeg?; },
+		COM8 -> COM9 { sync NCrep0?; assign tt = 0; },
+		COM3 -> COM3 { sync PLCout0?; },
+		COM12 -> COM12 { sync PLCout1?; },
+		COM8 -> COM10 { sync NCrep1?; assign tt = 0; },
+		COM6 -> COM2 { guard COMclk == COMct; assign COMclk = 0; },
+		COM6 -> COM6 { sync PLCout0?; },
+		COM12 -> COM13 { guard COMclk == COMd; sync CNreq1!; },
+		COM15 -> COM15 { sync PLCout1?; },
+		COM11 -> COM11 { sync PLCout1?; },
+		COM2 -> COM2 { sync PLCout0?; },
+		COM7 -> COM8 { guard COMclk == COMd; sync CNreq0!; },
+		COM3 -> COM5 { sync NCrep1?; assign tt = 0; },
+		COM6 -> COM11 { sync PLCout1?; },
+		COM5 -> COM6 { guard tt == 0; sync COMin1!; },
+		COM1 -> COM1 { sync PLCout0?; },
+		COM14 -> COM15 { guard tt == 0; sync COMin1!; },
+		COM10 -> COM11 { guard tt == 0; sync COMin1!; },
+		COM1 -> COM2 { assign COMclk = 0; },
+		COM3 -> COM4 { sync NCrep0?; assign tt = 0; },
+		COM8 -> COM8 { sync PLCout1?; },
+		COM9 -> COM11 { guard tt == 0; sync COMin0!; },
+		COM15 -> COM12 { guard COMclk == COMct; assign COMclk = 0; },
+		COM4 -> COM6 { guard tt == 0; sync COMin0!; },
+		COM13 -> COM13 { sync PLCout1?; };
+}
+process NET() {
+	clock NETclk;
+
+	state
+		NET1,
+		NET2 { NETclk <= NETd },
+		NET3,
+		NET4 { NETclk <= NETd },
+		NET5 { NETclk <= NETd },
+		NET6,
+		NET7 { NETclk <= NETd };
+
+	init NET1;
+
+	trans
+		NET3 -> NET4 { sync RNrep0?; assign NETclk = 0; },
+		NET2 -> NET3 { guard NETclk == NETd; sync NRreq0!; },
+		NET7 -> NET1 { guard NETclk == NETd; sync NCrep1!; },
+		NET4 -> NET1 { guard NETclk == NETd; sync NCrep0!; },
+		NET1 -> NET5 { sync CNreq1?; assign NETclk = 0; },
+		NET6 -> NET7 { sync RNrep1?; assign NETclk = 0; },
+		NET1 -> NET2 { sync CNreq0?; assign NETclk = 0; },
+		NET3 -> NET7 { sync RNrep1?; assign NETclk = 0; },
+		NET5 -> NET6 { guard NETclk == NETd; sync NRreq1!; };
+}
+process RIO() {
+	clock zz;
+	clock RIOclk;
+
+	state
+		RIO1,
+		RIO2 { RIOclk <= RIOd },
+		RIO3 { zz == 0 },
+		RIO4 { RIOclk <= RIOd },
+		RIO5 { zz == 0 },
+		RIO6,
+		RIO7 { RIOclk <= RIOd },
+		RIO8 { zz == 0 },
+		RIO9 { RIOclk <= RIOd },
+		RIO10 { zz == 0 };
+
+	init RIO1;
+
+	trans
+		RIO4 -> RIO5 { guard RIOclk == RIOd; sync SIGout0!; assign zz = 0; },
+		RIO6 -> RIO7 { sync NRreq0?; assign RIOclk = 0; },
+		RIO6 -> RIO9 { sync NRreq1?; assign RIOclk = 0; },
+		RIO10 -> RIO6 { guard zz == 0; sync RNrep1!; },
+		RIO5 -> RIO6 { guard zz == 0; sync RNrep0!; },
+		RIO7 -> RIO8 { guard RIOclk == RIOd; sync SIGout0!; assign zz = 0; },
+		RIO8 -> RIO6 { guard zz == 0; sync RNrep1!; },
+		RIO1 -> RIO2 { sync NRreq0?; assign RIOclk = 0; },
+		RIO9 -> RIO10 { guard RIOclk == RIOd; sync SIGout1!; assign zz = 0; },
+		RIO2 -> RIO4 { sync SIGin1?; },
+		RIO2 -> RIO3 { guard RIOclk == RIOd; sync SIGout0!; assign zz = 0; },
+		RIO3 -> RIO1 { guard zz == 0; sync RNrep0!; };
+}
+process ENV() {
+	clock ENVclk;
+
+	state
+		ENVinit,
+		ENV1,
+		ENV2 { ENVclk <= SIGmrt },
+		ENV4 { yy == 0 },
+		ENV5 { yy == 0 };
+
+	init ENVinit;
+
+	trans
+		ENV2 -> ENV2 { sync SIGout0?; },
+		ENV1 -> ENV1 { sync SIGout0?; },
+		ENV2 -> ENV5 { guard ENVclk == SIGmrt; assign yy = 0; },
+		ENVinit -> ENV1 { sync SIGout0?; },
+		ENV1 -> ENV2 { sync SIGin1!; assign ENVclk = 0; },
+		ENV2 -> ENV4 { sync SIGout1?; assign yy = 0; };
+}
+
+system PLC, COM, NET, RIO, ENV;

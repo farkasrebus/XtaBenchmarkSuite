@@ -1,0 +1,75 @@
+const int N = 8;
+
+const int a=2;
+const int b=5;
+const int c=1;
+const int d=2;
+const int e=1;
+
+typedef int[1, N] id_t;
+int cnt;
+
+chan exit;
+chan lower;
+chan raise;
+chan approach;
+
+process train(const id_t id) {
+	clock x;
+
+	state
+		train0,
+		train1 { x <= b },
+		train2 { x <= b },
+		train3 { x <= b };
+
+	init train0;
+
+	trans
+		train2 -> train3 { },
+		train3 -> train0 { guard x <= b; sync exit?; },
+		train1 -> train2 { guard x > a; },
+		train0 -> train1 { sync approach?; assign x = 0; };
+}
+process gate() {
+	clock y;
+
+	state
+		gate0,
+		gate1 { y <= c },
+		gate2,
+		gate3 { y <= d };
+
+	init gate0;
+
+	trans
+		gate1 -> gate2 { guard y <= c; },
+		gate2 -> gate3 { sync raise?; assign y = 0; },
+		gate0 -> gate1 { sync lower?; assign y = 0; },
+		gate3 -> gate0 { guard y >= c && y <= d; };
+}
+
+process controller() {
+	clock z;
+
+	state
+		controller0,
+		controller1 { z <= e },
+		controller2,
+		controller3 { z <= e };
+
+	init controller0;
+
+	trans
+		controller0 -> controller1 { sync approach!; assign z = 0, cnt = 1; },
+    controller1 -> controller1 { sync approach!; assign cnt = cnt + 1;},
+    controller1 -> controller1 { sync exit!; assign cnt = cnt - 1;},
+    controller2 -> controller2 { sync approach!; assign cnt = cnt + 1; },
+    controller2 -> controller2 { guard cnt > 1; sync exit!; assign cnt = cnt - 1; },
+    controller2 -> controller3 { guard cnt == 1; sync exit!; assign z = 0, cnt = 0; },
+		controller3 -> controller0 { guard z <= e; sync raise!; },
+    controller3 -> controller2 { guard z <= e; sync approach!; assign cnt = cnt + 1; },
+		controller1 -> controller2 { guard z == e; sync lower!; };
+}
+
+system train, gate, controller;

@@ -1,0 +1,95 @@
+const int t_down=1;
+const int dNor2_u=2;
+const int dNor1_u=2;
+const int dNor1_l=1;
+const int dNor2_l=1;
+
+chan overQ_Down;
+chan S_Down;
+chan Q_Down;
+chan R_Down;
+chan overQ_Up;
+chan Q_Up;
+
+process env() {
+	clock s;
+
+	state
+		env_11,
+		env_10 { s <= t_down },
+		env_final;
+
+	init env_11;
+
+	trans
+		env_11 -> env_10 { sync S_Down!; assign s = 0; },
+		env_10 -> env_final { guard s == t_down; sync R_Down!; };
+}
+process norGate1() {
+	clock ckNor1;
+
+	state
+		Nor1_000 { ckNor1 <= dNor1_u },
+		Nor1_001,
+		Nor1_010,
+		Nor1_011 { ckNor1 <= dNor1_u },
+		Nor1_100,
+		Nor1_101 { ckNor1 <= dNor1_u },
+		Nor1_110,
+		Nor1_111 { ckNor1 <= dNor1_u };
+
+	init Nor1_100;
+
+	trans
+		Nor1_111 -> Nor1_110 { guard ckNor1 >= dNor1_l; sync Q_Down!; },
+		Nor1_011 -> Nor1_010 { guard ckNor1 >= dNor1_l; sync Q_Down!; },
+		Nor1_110 -> Nor1_100 { sync overQ_Down?; },
+		Nor1_101 -> Nor1_100 { guard ckNor1 >= dNor1_l; sync Q_Down!; },
+		Nor1_111 -> Nor1_101 { sync overQ_Down?; assign ckNor1 = 0; },
+		Nor1_100 -> Nor1_000 { sync R_Down?; assign ckNor1 = 0; },
+		Nor1_101 -> Nor1_001 { sync R_Down?; },
+		Nor1_010 -> Nor1_000 { sync overQ_Down?; assign ckNor1 = 0; },
+		Nor1_100 -> Nor1_110 { sync overQ_Up?; },
+		Nor1_011 -> Nor1_001 { sync overQ_Down?; },
+		Nor1_000 -> Nor1_001 { guard ckNor1 >= dNor1_l; sync Q_Up!; },
+		Nor1_101 -> Nor1_111 { sync overQ_Up?; assign ckNor1 = 0; },
+		Nor1_111 -> Nor1_011 { sync R_Down?; assign ckNor1 = 0; },
+		Nor1_001 -> Nor1_011 { sync overQ_Up?; assign ckNor1 = 0; },
+		Nor1_110 -> Nor1_010 { sync R_Down?; },
+		Nor1_000 -> Nor1_010 { sync overQ_Up?; };
+}
+process norGate2() {
+	clock ckNor2;
+
+	state
+		Nor2_000 { ckNor2 <= dNor2_u },
+		Nor2_001,
+		Nor2_010,
+		Nor2_011 { ckNor2 <= dNor2_u },
+		Nor2_100,
+		Nor2_101 { ckNor2 <= dNor2_u },
+		Nor2_110,
+		Nor2_111 { ckNor2 <= dNor2_u };
+
+	init Nor2_010;
+
+	trans
+		Nor2_011 -> Nor2_001 { sync S_Down?; },
+		Nor2_010 -> Nor2_000 { sync S_Down?; assign ckNor2 = 0; },
+		Nor2_011 -> Nor2_111 { sync Q_Up?; assign ckNor2 = 0; },
+		Nor2_101 -> Nor2_100 { guard ckNor2 >= dNor2_l; sync overQ_Down!; },
+		Nor2_000 -> Nor2_001 { guard ckNor2 >= dNor2_l; sync overQ_Up!; },
+		Nor2_111 -> Nor2_110 { guard ckNor2 >= dNor2_l; sync overQ_Down!; },
+		Nor2_111 -> Nor2_011 { sync Q_Down?; assign ckNor2 = 0; },
+		Nor2_101 -> Nor2_001 { sync Q_Down?; },
+		Nor2_111 -> Nor2_101 { sync S_Down?; assign ckNor2 = 0; },
+		Nor2_000 -> Nor2_100 { sync Q_Up?; },
+		Nor2_100 -> Nor2_000 { sync Q_Down?; assign ckNor2 = 0; },
+		Nor2_010 -> Nor2_110 { sync Q_Up?; },
+		Nor2_011 -> Nor2_010 { guard ckNor2 >= dNor2_l; sync overQ_Down!; },
+		Nor2_001 -> Nor2_101 { sync Q_Up?; assign ckNor2 = 0; },
+		Nor2_110 -> Nor2_010 { sync Q_Down?; },
+		Nor2_110 -> Nor2_100 { sync S_Down?; };
+}
+
+system env, norGate1, norGate2;

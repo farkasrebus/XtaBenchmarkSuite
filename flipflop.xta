@@ -1,0 +1,262 @@
+const int tHI = 40;
+const int dG3_u = 10;
+const int dG4_u = 7;
+const int tLO = 20;
+const int tHold = 6;
+const int dG1_u = 18;
+const int dG2_u = 19;
+const int dG1_l = 18;
+const int tSetup = 1;
+const int dG4_l = 3;
+const int dG2_l = 5;
+const int dG3_l = 8;
+
+int qLevel;
+
+clock s;
+clock ckG3;
+clock ckG4;
+clock ckG1;
+clock ckG2;
+
+broadcast chan qG3Up;
+broadcast chan qG1Down;
+broadcast chan dDown;
+broadcast chan qG2Down;
+broadcast chan qG3Down;
+broadcast chan qDown;
+broadcast chan ckUp;
+broadcast chan qUp;
+broadcast chan dUp;
+broadcast chan ckDown;
+broadcast chan qG2Up;
+broadcast chan qG1Up;
+
+process input() {
+	state
+		Input0 { s <= tLO + tSetup},
+		Input1 { s <= tLO },
+		Input2 { s <= tLO + tHold },
+		Input3 { s <= tHI + tLO },
+		Input4 { s <= 0 };
+
+	init Input0;
+
+	trans
+		Input2 -> Input3 { guard s == tLO + tHold; sync dDown!; },
+		Input1 -> Input2 { guard s == tLO; sync ckUp!; },
+		Input0 -> Input1 { guard s == tSetup + tLO; sync dUp!; },
+		Input3 -> Input4 { guard s == tHI + tLO; sync ckDown!; assign s = 0; };
+}
+process g1() {
+	state
+		G11011 { ckG1 <= dG1_u },
+		G11100 { ckG1 <= dG1_u },
+		G11101 { ckG1 >= 0 },
+		G11110 { ckG1 >= 0 },
+		G11111 { ckG1 <= dG1_u },
+		G10000 { ckG1 <= dG1_u },
+		G10001 { ckG1 >= 0 },
+		G10010 { ckG1 <= dG1_u },
+		G10011 { ckG1 >= 0 },
+		G10100 { ckG1 <= dG1_u },
+		G10101 { ckG1 >= 0 },
+		G10110 { ckG1 >= 0 },
+		G10111 { ckG1 <= dG1_u },
+		G11000 { ckG1 <= dG1_u },
+		G11001 { ckG1 >= 0 },
+		G11010 { ckG1 >= 0 };
+
+	init G10011;
+
+	trans
+		G10101 -> G10111 { sync qG2Up?; assign ckG1 = 0; },
+		G11110 -> G11010 { sync ckDown?; },
+		G10101 -> G10001 { sync ckDown?; },
+		G10010 -> G10000 { sync qG2Down?; assign ckG1 = 0; },
+		G11100 -> G11000 { sync ckDown?; assign ckG1 = 0; },
+		G10010 -> G11010 { sync dUp?; },
+		G11001 -> G11101 { sync ckUp?; },
+		G10000 -> G11000 { sync dUp?; assign ckG1 = 0; },
+		G11010 -> G11000 { sync qG2Down?; assign ckG1 = 0; },
+		G10101 -> G11101 { sync dUp?; },
+		G11100 -> G11101 { guard ckG1 >= dG1_l; sync qG1Up!; },
+		G10111 -> G10101 { sync qG2Down?; },
+		G11111 -> G11110 { guard ckG1 >= dG1_l; sync qG1Down!; },
+		G11101 -> G11001 { sync ckDown?; },
+		G11011 -> G11111 { sync ckUp?; assign ckG1 = 0; },
+		G11100 -> G10100 { sync dDown?; assign ckG1 = 0; },
+		G10100 -> G10101 { guard ckG1 >= dG1_l; sync qG1Up!; },
+		G10111 -> G11111 { sync dUp?; assign ckG1 = 0; },
+		G11110 -> G10110 { sync dDown?; },
+		G11101 -> G11111 { sync qG2Up?; assign ckG1 = 0; },
+		G10001 -> G11001 { sync dUp?; },
+		G10111 -> G10110 { guard ckG1 >= dG1_l; sync qG1Down!; },
+		G11110 -> G11100 { sync qG2Down?; assign ckG1 = 0; },
+		G10011 -> G10111 { sync ckUp?; assign ckG1 = 0; },
+		G10001 -> G10011 { sync qG2Up?; },
+		G11011 -> G11001 { sync qG2Down?; },
+		G10000 -> G10100 { sync ckUp?; assign ckG1 = 0; },
+		G11000 -> G11001 { guard ckG1 >= dG1_l; sync qG1Up!; },
+		G11101 -> G10101 { sync dDown?; },
+		G10110 -> G11110 { sync dUp?; },
+		G11000 -> G11010 { sync qG2Up?; },
+		G11010 -> G10010 { sync dDown?; assign ckG1 = 0; },
+		G10011 -> G11011 { sync dUp?; assign ckG1 = 0; },
+		G10010 -> G10011 { guard ckG1 >= dG1_l; sync qG1Up!; },
+		G10110 -> G10100 { sync qG2Down?; assign ckG1 = 0; },
+		G10100 -> G10000 { sync ckDown?; assign ckG1 = 0; },
+		G10100 -> G10110 { sync qG2Up?; },
+		G10111 -> G10011 { sync ckDown?; },
+		G11001 -> G10001 { sync dDown?; },
+		G11111 -> G11101 { sync qG2Down?; },
+		G11100 -> G11110 { sync qG2Up?; },
+		G11111 -> G10111 { sync dDown?; assign ckG1 = 0; },
+		G10001 -> G10101 { sync ckUp?; },
+		G11011 -> G11010 { guard ckG1 >= dG1_l; sync qG1Down!; },
+		G11010 -> G11110 { sync ckUp?; },
+		G11011 -> G10011 { sync dDown?; },
+		G11000 -> G11100 { sync ckUp?; assign ckG1 = 0; },
+		G10011 -> G10001 { sync qG2Down?; },
+		G10010 -> G10110 { sync ckUp?; },
+		G11001 -> G11011 { sync qG2Up?; assign ckG1 = 0; },
+		G11000 -> G10000 { sync dDown?; assign ckG1 = 0; },
+		G11111 -> G11011 { sync ckDown?; assign ckG1 = 0; },
+		G10110 -> G10010 { sync ckDown?; assign ckG1 = 0; },
+		G10000 -> G10001 { guard ckG1 >= dG1_l; sync qG1Up!; },
+		G10000 -> G10010 { sync qG2Up?; assign ckG1 = 0; },
+		G10100 -> G11100 { sync dUp?; assign ckG1 = 0; };
+}
+process g2() {
+	state
+		G2001 { ckG2 >= 0 },
+		G2000 { ckG2 <= dG2_u },
+		G2011 { ckG2 >= 0 },
+		G2010 { ckG2 <= dG2_u },
+		G2101 { ckG2 >= 0 },
+		G2100 { ckG2 <= dG2_u },
+		G2111 { ckG2 <= dG2_u },
+		G2110 { ckG2 >= 0 };
+
+	init G2101;
+
+	trans
+		G2010 -> G2000 { sync ckDown?; assign ckG2 = 0; },
+		G2111 -> G2011 { sync qG1Down?; },
+		G2101 -> G2001 { sync qG1Down?; },
+		G2110 -> G2100 { sync ckDown?; assign ckG2 = 0; },
+		G2000 -> G2010 { sync ckUp?; assign ckG2 = 0; },
+		G2000 -> G2100 { sync qG1Up?; assign ckG2 = 0; },
+		G2100 -> G2110 { sync ckUp?; },
+		G2100 -> G2101 { guard ckG2 >= dG2_l; sync qG2Up!; },
+		G2001 -> G2011 { sync ckUp?; },
+		G2100 -> G2000 { sync qG1Down?; assign ckG2 = 0; },
+		G2011 -> G2001 { sync ckDown?; },
+		G2010 -> G2110 { sync qG1Up?; },
+		G2010 -> G2011 { guard ckG2 >= dG2_l; sync qG2Up!; },
+		G2000 -> G2001 { guard ckG2 >= dG2_l; sync qG2Up!; },
+		G2110 -> G2010 { sync qG1Down?; assign ckG2 = 0; },
+		G2111 -> G2101 { sync ckDown?; },
+		G2001 -> G2101 { sync qG1Up?; },
+		G2101 -> G2111 { sync ckUp?; assign ckG2 = 0; },
+		G2111 -> G2110 { guard ckG2 >= dG2_l; sync qG2Down!; },
+		G2011 -> G2111 { sync qG1Up?; assign ckG2 = 0; };
+}
+process g3() {
+	state
+		G31011 { ckG3 <= dG3_u },
+		G31100 { ckG3 <= dG3_u },
+		G31101 { ckG3 >= 0 },
+		G31110 { ckG3 >= 0 },
+		G31111 { ckG3 <= dG3_u },
+		G30000 { ckG3 <= dG3_u },
+		G30001 { ckG3 >= 0 },
+		G30010 { ckG3 <= dG3_u },
+		G30011 { ckG3 >= 0 },
+		G30100 { ckG3 <= dG3_u },
+		G30101 { ckG3 >= 0 },
+		G30110 { ckG3 >= 0 },
+		G30111 { ckG3 <= dG3_u },
+		G31000 { ckG3 <= dG3_u },
+		G31001 { ckG3 >= 0 },
+		G31010 { ckG3 >= 0 };
+
+	init G30011;
+
+	trans
+		G30100 -> G30000 { sync ckDown?; assign ckG3 = 0; },
+		G31110 -> G31010 { sync ckDown?; },
+		G30101 -> G30001 { sync ckDown?; },
+		G30100 -> G30101 { guard ckG3 >= dG3_l; sync qG3Up?; },
+		G31001 -> G31101 { sync ckUp?; },
+		G30011 -> G30111 { sync ckUp?; assign ckG3 = 0; },
+		G30000 -> G30100 { sync ckUp?; assign ckG3 = 0; },
+		G31101 -> G31111 { sync qG2Up?; assign ckG3 = 0; },
+		G30110 -> G31110 { sync qUp?; },
+		G30110 -> G30100 { sync qG2Down?; assign ckG3 = 0; },
+		G31100 -> G31000 { sync ckDown?; assign ckG3 = 0; },
+		G31100 -> G30100 { sync qDown?; assign ckG3 = 0; },
+		G30111 -> G30101 { sync qG2Down?; },
+		G31101 -> G31001 { sync ckDown?; },
+		G31001 -> G31011 { sync qG2Up?; assign ckG3 = 0; },
+		G30010 -> G30011 { guard ckG3 >= dG3_l; sync qG3Up?; },
+		G30110 -> G30010 { sync ckDown?; assign ckG3 = 0; },
+		G31101 -> G30101 { sync qDown?; },
+		G31111 -> G31011 { sync ckDown?; assign ckG3 = 0; },
+		G30101 -> G30111 { sync qG2Up?; assign ckG3 = 0; },
+		G31000 -> G31100 { sync ckUp?; assign ckG3 = 0; },
+		G31011 -> G31010 { guard ckG3 >= dG3_l; sync qG3Down!; },
+		G31110 -> G30110 { sync qDown?; },
+		G31100 -> G31101 { guard ckG3 >= dG3_l; sync qG3Up?; },
+		G31011 -> G30011 { sync qDown?; },
+		G30000 -> G30001 { guard ckG3 >= dG3_l; sync qG3Up?; },
+		G30001 -> G30011 { sync qG2Up?; },
+		G31011 -> G31001 { sync qG2Down?; },
+		G30111 -> G31111 { sync qUp?; assign ckG3 = 0; },
+		G31000 -> G30000 { sync qDown?; assign ckG3 = 0; },
+		G30100 -> G31100 { sync qUp?; assign ckG3 = 0; },
+		G31000 -> G31010 { sync qG2Up?; },
+		G31110 -> G31100 { sync qG2Down?; assign ckG3 = 0; },
+		G30101 -> G31101 { sync qUp?; },
+		G31111 -> G30111 { sync qDown?; assign ckG3 = 0; },
+		G30100 -> G30110 { sync qG2Up?; },
+		G31000 -> G31001 { guard ckG3 >= dG3_l; sync qG3Up?; },
+		G30111 -> G30011 { sync ckDown?; },
+		G30000 -> G30010 { sync qG2Up?; assign ckG3 = 0; },
+		G31111 -> G31101 { sync qG2Down?; },
+		G31001 -> G30001 { sync qDown?; },
+		G31100 -> G31110 { sync qG2Up?; },
+		G30111 -> G30110 { guard ckG3 >= dG3_l; sync qG3Down!; },
+		G30001 -> G30101 { sync ckUp?; },
+		G30010 -> G30000 { sync qG2Down?; assign ckG3 = 0; },
+		G31010 -> G31110 { sync ckUp?; },
+		G30010 -> G31010 { sync qUp?; },
+		G30011 -> G30001 { sync qG2Down?; },
+		G30010 -> G30110 { sync ckUp?; },
+		G31111 -> G31110 { guard ckG3 >= dG3_l; sync qG3Down!; },
+		G30000 -> G31000 { sync qUp?; assign ckG3 = 0; },
+		G31011 -> G31111 { sync ckUp?; assign ckG3 = 0; },
+		G31010 -> G30010 { sync qDown?; assign ckG3 = 0; },
+		G30011 -> G31011 { sync qUp?; assign ckG3 = 0; },
+		G30001 -> G31001 { sync qUp?; },
+		G31010 -> G31000 { sync qG2Down?; assign ckG3 = 0; };
+}
+process g4() {
+	state
+		G401 { ckG4 >= 0 },
+		G411 { ckG4 <= dG4_u },
+		G410 { ckG4 >= 0 },
+		G400 { ckG4 <= dG4_u };
+
+	init G410;
+
+	trans
+		G400 -> G401 { guard ckG4 >= dG4_l; sync qUp!; assign qLevel = 1; },
+		G401 -> G411 { sync qG3Up!; assign ckG4 = 0; },
+		G411 -> G401 { sync qG3Down?; },
+		G400 -> G410 { sync qG3Up!; },
+		G410 -> G400 { sync qG3Down?; assign ckG4 = 0; },
+		G411 -> G410 { guard ckG4 >= dG4_l; sync qDown!; assign qLevel = 0; };
+}
+
+system input, g1, g2, g3, g4;

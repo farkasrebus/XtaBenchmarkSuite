@@ -1,0 +1,27 @@
+const int p1=10;
+const int p2=50;
+
+process A() {
+	clock x1;
+	clock x2;
+
+	state
+		q0 { x1 <= 2 * p1 },
+		q1,
+		q2 { x1 <= p2 },
+		q3,
+		qBad;
+
+	init q0;
+
+	trans
+		q3 -> q2 { },
+		q0 -> qBad { guard x1 >= p2; },
+		q2 -> q3 { guard x2 > p2; },
+		q1 -> q1 { assign x2 = 0; },
+		q1 -> q2 { guard x1 >= p1; },
+		q0 -> q1 { assign x2 = 0; },
+		q2 -> qBad { guard x1 >= 4 * p1; };
+}
+
+system A;

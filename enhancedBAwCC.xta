@@ -1,0 +1,1488 @@
+typedef int[0,4] Buffer_Implementation;
+const Buffer_Implementation SET = 0;
+const Buffer_Implementation BAG = 1;
+const Buffer_Implementation STUTT_FIFO = 2;
+const Buffer_Implementation FIFO = 3;
+const Buffer_Implementation LOSSY_FIFO = 4;
+
+// ****************************
+// PROTOCOL CONFIGURATION START
+// ****************************
+
+// First choose a communication policy, possible values are: SET, BAG, STUTT_FIFO, FIFO, LOSSY_FIFO
+Buffer_Implementation buffer_Implementation = STUTT_FIFO;
+
+// Then set the maximum buffer capacity
+const int BUFFER_CAPACITY = 4;
+
+// Finally set the minimum delay and tire-outs for the retransmission of messages 
+// This is relevant only for the termination property and MIN_DELAY should be 
+// smaller or eqaul than TIRE_OUT
+// For boundedness and correctness checks, the constants should be both set to 0
+const int MIN_DELAY = 0;
+const int TIRE_OUT = 0;
+
+// **************************
+// PROTOCOL CONFIGURATION END
+// **************************
+
+
+
+bool overflow = false;
+
+typedef int[0,BUFFER_CAPACITY-1] BufferTc;
+int [0,BUFFER_CAPACITY] bufferSizeTc;
+
+typedef int[0,BUFFER_CAPACITY-1] BufferP;
+int [0,BUFFER_CAPACITY] bufferSizeP;
+
+/**Coordinator states*/
+typedef int[0,14] StateTC;
+const StateTC TC_ACTIVE = 0;
+const StateTC TC_CANCELING_ACTIVE = 1;
+const StateTC TC_CANCELING_COMPLETING = 2;
+const StateTC TC_COMPLETING = 3;
+const StateTC TC_COMPLETED = 4;
+const StateTC TC_CLOSING = 5;
+const StateTC TC_COMPENSATING = 6;
+const StateTC TC_FAILING_ACC = 7; //failing Active/Canceling/Completing
+const StateTC TC_FAILING_C = 8; //failing Compensating
+const StateTC TC_NOT_COMPLETING = 9;
+const StateTC TC_EXITING = 10;
+const StateTC TC_ENDED_FAILED = 11;
+const StateTC TC_ENDED_EXITED = 12;
+const StateTC TC_ENDED_NOTCOMPLETED = 13;
+const StateTC TC_ENDED = 14;
+
+StateTC stTC = TC_ACTIVE;
+
+/**States of the Participant.*/
+typedef int[0,13] StateP;
+const StateP P_ACTIVE = 0;
+const StateP P_CANCELING = 1;
+const StateP P_COMPLETING = 2;
+const StateP P_COMPLETED = 3;
+const StateP P_CLOSING = 4;
+const StateP P_COMPENSATING = 5;
+const StateP P_FAILING_ACC = 6; //failing Active/Canceling
+const StateP P_FAILING_C = 7; //failing Compensating
+const StateP P_NOT_COMPLETING = 8;
+const StateP P_EXITING = 9;
+const StateP P_ENDED_CANCELED = 10;
+const StateP P_ENDED_CLOSED = 11;
+const StateP P_ENDED_COMPENSATED = 12;
+const StateP P_ENDED = 13;
+
+StateP stP = P_ACTIVE;
+
+//Messages sent from TC to Participant.
+typedef int[0,7] MsgsTC;
+const MsgsTC CANCEL_TC = 0;
+const MsgsTC COMPLETE_TC = 1;
+const MsgsTC CLOSE_TC = 2;
+const MsgsTC COMPENSATE_TC =3;
+const MsgsTC FAILED_TC = 4;
+const MsgsTC EXITED_TC = 5;
+const MsgsTC NOT_COMPLETED_TC = 6;
+const MsgsTC FAILED_EXITED_NOT_COMPLETED_TC = 7;
+
+int msgTC_SET_BAG[MsgsTC];
+
+MsgsTC msgTC_FIFO[BufferTc];
+
+//Messages sent from Participant to TC.
+typedef int[0,7] MsgsP;
+const MsgsP EXIT_P = 0;
+const MsgsP COMPLETED_P = 1;
+const MsgsP FAIL_P = 2;
+const MsgsP CANNOT_COMPLETE_P = 3;
+const MsgsP CANCELED_P = 4;
+const MsgsP CLOSED_P = 5;
+const MsgsP COMPENSATED_P = 6;
+const MsgsP CANCELED_CLOSED_COMPENSATED_P = 7;
+
+int msgP_SET_BAG[MsgsP];
+
+MsgsP msgP_FIFO[BufferP];
+
+process Coordinator() {
+clock x,y;
+
+void Send_Msg(MsgsTC s) {
+int i;
+//SET construct
+if (buffer_Implementation == SET) msgTC_SET_BAG[s] = true;
+//BAG construct
+if (buffer_Implementation == BAG) {
+	if (msgTC_SET_BAG[s] == BUFFER_CAPACITY) overflow = true;
+		else msgTC_SET_BAG[s]++; }
+//STUTT_FIFO construct
+if (buffer_Implementation == STUTT_FIFO)	{
+	if (bufferSizeTc == BUFFER_CAPACITY) overflow = true;
+		else
+  		{	if (msgTC_FIFO[0] != s and bufferSizeTc>0)	{
+                		for (i=bufferSizeTc-1; i>=0; i--) msgTC_FIFO[i+1] = msgTC_FIFO[i];
+				        bufferSizeTc++; msgTC_FIFO[0] = s; 
+                        }
+            if (bufferSizeTc==0) { bufferSizeTc++; msgTC_FIFO[0] = s; }
+   		}		
+				}
+//FIFO construct
+
+if (buffer_Implementation == FIFO || buffer_Implementation == LOSSY_FIFO) {
+	if (bufferSizeTc == BUFFER_CAPACITY) overflow = true;
+		else
+  			{ for (i=bufferSizeTc-1; i>=0; i--) msgTC_FIFO[i+1] = msgTC_FIFO[i];
+				bufferSizeTc++; 
+  				msgTC_FIFO[0] = s;}
+		}
+
+}
+bool Receive_Msg(MsgsP r) {
+int i;
+//SET construct
+if (buffer_Implementation == SET) return msgP_SET_BAG[r];
+//BAG construct
+if (buffer_Implementation == BAG) return(msgP_SET_BAG[r] >= 1);
+//STUTT_FIFO construct
+if (buffer_Implementation == STUTT_FIFO) {
+	for (i=bufferSizeP-1; i>=0; i--) 
+		if (msgP_FIFO[i] == r) return true;
+			return false;}
+//FIFO construct
+if (buffer_Implementation == FIFO || buffer_Implementation == LOSSY_FIFO) {
+    if (bufferSizeP==0) return false;
+	return (msgP_FIFO[bufferSizeP-1] == r);}
+return false;
+}
+
+void Received_Msg(MsgsP r) {
+int i;
+//SET construct
+//if (buffer_Implementation == SET) return ;
+//BAG construct
+if (buffer_Implementation == BAG) msgP_SET_BAG[r]--;
+//STUTT_FIFO construct
+if (buffer_Implementation == STUTT_FIFO) {
+        i = 0; 
+	while ( msgP_FIFO[i] != r) i++; // msgP_SEQ[0,i-1] != r
+                bufferSizeP--;
+	 }
+//FIFO construct
+if (buffer_Implementation == FIFO || buffer_Implementation == LOSSY_FIFO) {
+	bufferSizeP--; }
+}
+//Messages transmitted by the TC
+
+bool guard1() {
+return stTC == TC_ACTIVE;
+}
+void action1() {
+Send_Msg(CANCEL_TC);
+stTC = TC_CANCELING_ACTIVE;
+}
+
+bool guard2() {
+return stTC == TC_CANCELING_ACTIVE;
+}
+void action2() {
+Send_Msg(CANCEL_TC);
+}
+
+bool guard3() {
+return stTC == TC_CANCELING_COMPLETING;
+}
+void action3() {
+Send_Msg(CANCEL_TC);
+}
+
+bool guard4() {
+return stTC == TC_COMPLETING;
+}
+void action4() {
+Send_Msg(CANCEL_TC);
+stTC = TC_CANCELING_COMPLETING;
+}
+
+bool guard5() {
+return stTC == TC_ACTIVE;
+}
+void action5() {
+Send_Msg(COMPLETE_TC);
+stTC = TC_COMPLETING;
+}
+
+bool guard6() {
+return stTC == TC_COMPLETING;
+}
+void action6() {
+Send_Msg(COMPLETE_TC);
+}
+
+bool guard7() {
+return stTC == TC_COMPLETED;
+}
+void action7() {
+Send_Msg(CLOSE_TC);
+stTC = TC_CLOSING;
+}
+
+bool guard8() {
+return stTC == TC_CLOSING;
+}
+void action8() {
+Send_Msg(CLOSE_TC);
+}
+
+bool guard9() {
+return stTC == TC_COMPLETED;
+}
+void action9() {
+Send_Msg(COMPENSATE_TC);
+stTC = TC_COMPENSATING;
+}
+
+bool guard10() {
+return stTC == TC_COMPENSATING;
+}
+void action10() {
+Send_Msg(COMPENSATE_TC);
+}
+
+bool guard11() {
+return stTC == TC_FAILING_ACC || stTC == TC_FAILING_C;
+}
+void action11() {
+Send_Msg(FAILED_TC);
+stTC = TC_ENDED_FAILED;
+}
+
+bool guard12() {
+return stTC == TC_ENDED_FAILED;
+}
+void action12() {
+Send_Msg(FAILED_TC);
+}
+
+bool guard13() {
+return stTC == TC_EXITING;
+}
+void action13() {
+Send_Msg(EXITED_TC);
+stTC = TC_ENDED_EXITED;
+}
+
+bool guard14() {
+return stTC == TC_ENDED_EXITED;
+}
+void action14() {
+Send_Msg(EXITED_TC);
+}
+
+bool guard15() {
+return stTC == TC_NOT_COMPLETING;
+}
+void action15() {
+Send_Msg(NOT_COMPLETED_TC);
+stTC = TC_ENDED_NOTCOMPLETED;
+}
+
+bool guard16() {
+return stTC == TC_ENDED_NOTCOMPLETED;
+}
+void action16() {
+Send_Msg(NOT_COMPLETED_TC);
+}
+
+//Messages received by the TC
+
+bool guard17() {
+return Receive_Msg(EXIT_P) && (stTC == TC_ACTIVE || stTC == TC_CANCELING_ACTIVE || stTC == TC_CANCELING_COMPLETING || stTC == TC_COMPLETING);
+} 
+void action17() {
+stTC = TC_EXITING;
+Received_Msg(EXIT_P);
+}
+
+bool guard18() {
+return Receive_Msg(EXIT_P) && stTC == TC_EXITING;
+} 
+void action18() {
+Received_Msg(EXIT_P);
+}
+
+bool guard19() {
+return Receive_Msg(EXIT_P) && (stTC == TC_ENDED_FAILED || stTC == TC_ENDED_NOTCOMPLETED || stTC == TC_ENDED);
+}
+void action19() {
+Received_Msg(EXIT_P);
+}
+
+bool guard20() {
+return Receive_Msg(EXIT_P) && stTC == TC_ENDED_EXITED;
+} 
+void action20() {
+Send_Msg(EXITED_TC);
+Received_Msg(EXIT_P);
+}
+
+bool guard21() {
+return Receive_Msg(COMPLETED_P) && (stTC == TC_CANCELING_COMPLETING || stTC == TC_COMPLETING);
+}
+void action21() {
+stTC = TC_COMPLETED;
+Received_Msg(COMPLETED_P);
+}
+
+bool guard22() {
+return Receive_Msg(COMPLETED_P) && stTC == TC_COMPLETED;
+}
+void action22() {
+Received_Msg(COMPLETED_P);
+}
+
+bool guard23() {
+return Receive_Msg(COMPLETED_P) && stTC == TC_CLOSING;
+}
+void action23() {
+Send_Msg(CLOSE_TC);
+Received_Msg(COMPLETED_P);
+}
+
+bool guard24() {
+return Receive_Msg(COMPLETED_P) && stTC == TC_COMPENSATING;
+}
+void action24() {
+Send_Msg(COMPENSATE_TC);
+Received_Msg(COMPLETED_P);
+}
+
+bool guard25() {
+return Receive_Msg(COMPLETED_P) && stTC == TC_FAILING_C;
+}
+void action25() {
+Received_Msg(COMPLETED_P);
+}
+
+bool guard26() {
+return Receive_Msg(COMPLETED_P) && (stTC == TC_ENDED_FAILED || stTC == TC_ENDED_EXITED || stTC == TC_ENDED_NOTCOMPLETED || stTC == TC_ENDED);
+}
+void action26() {
+Received_Msg(COMPLETED_P);
+}
+
+bool guard27() {
+return Receive_Msg(FAIL_P) && 
+		(stTC == TC_ACTIVE || stTC == TC_CANCELING_ACTIVE || stTC == TC_CANCELING_COMPLETING || stTC == TC_COMPLETING);
+}
+void action27() {
+stTC = TC_FAILING_ACC;
+Received_Msg(FAIL_P);
+}
+
+bool guard28() {
+return Receive_Msg(FAIL_P) && stTC == TC_COMPENSATING;
+}
+void action28() {
+stTC = TC_FAILING_C;
+Received_Msg(FAIL_P);
+}
+
+bool guard29() {
+return Receive_Msg(FAIL_P) && stTC == TC_FAILING_ACC;
+}
+void action29() {
+Received_Msg(FAIL_P);
+}
+
+bool guard30() {
+return Receive_Msg(FAIL_P) && stTC == TC_FAILING_C;
+}
+void action30() {
+Received_Msg(FAIL_P);
+}
+
+bool guard31() {
+return Receive_Msg(FAIL_P) && stTC == TC_ENDED_FAILED;
+}
+void action31() {
+Send_Msg(FAILED_TC);
+Received_Msg(FAIL_P);
+}
+
+bool guard32() {
+return Receive_Msg(FAIL_P) && (stTC == TC_ENDED_EXITED || stTC == TC_ENDED_NOTCOMPLETED || stTC == TC_ENDED);
+}
+void action32() {
+Received_Msg(FAIL_P);
+}
+
+bool guard33() {
+return Receive_Msg(CANNOT_COMPLETE_P) && 
+		(stTC == TC_ACTIVE || stTC == TC_CANCELING_ACTIVE || stTC == TC_CANCELING_COMPLETING || stTC == TC_COMPLETING);
+}
+void action33() {
+stTC = TC_NOT_COMPLETING;
+Received_Msg(CANNOT_COMPLETE_P);
+}
+
+bool guard34() {
+return Receive_Msg(CANNOT_COMPLETE_P) && stTC == TC_NOT_COMPLETING;
+}
+void action34() {
+Received_Msg(CANNOT_COMPLETE_P);
+}
+
+bool guard35() {
+return Receive_Msg(CANNOT_COMPLETE_P) && (stTC == TC_ENDED_FAILED || stTC == TC_ENDED_EXITED || stTC == TC_ENDED);
+}
+void action35() {
+Received_Msg(CANNOT_COMPLETE_P);
+}
+
+bool guard36() {
+return Receive_Msg(CANNOT_COMPLETE_P) && stTC == TC_ENDED_NOTCOMPLETED;
+}
+void action36() {
+Send_Msg(NOT_COMPLETED_TC);
+Received_Msg(CANNOT_COMPLETE_P);
+}
+
+//bool guard37() {
+//return Receive_Msg(CANCELED_P) && (stTC == TC_CANCELING_ACTIVE || stTC == TC_CANCELING_COMPLETING);
+//}
+//void action37() {
+//Received_Msg(CANCELED_P);
+//stTC = TC_ENDED_FAILED;
+//}
+
+//bool guard38() {
+//return Receive_Msg(CANCELED_P) && (stTC == TC_CANCELING_ACTIVE || stTC == TC_CANCELING_COMPLETING);
+//}
+//void action38() {
+//Received_Msg(CANCELED_P);
+//stTC = TC_ENDED_EXITED;
+//}
+
+bool guard37() {
+return Receive_Msg(CANCELED_P) && (stTC == TC_CANCELING_ACTIVE || stTC == TC_CANCELING_COMPLETING);
+}
+void action37() {
+Received_Msg(CANCELED_P);
+stTC = TC_ENDED;
+}
+
+bool guard38() {
+return Receive_Msg(CANCELED_P) && (stTC == TC_ENDED_FAILED || stTC == TC_ENDED_EXITED || stTC == TC_ENDED_NOTCOMPLETED || stTC == TC_ENDED);
+}
+void action38() {
+Received_Msg(CANCELED_P);
+}
+
+//bool guard41() {
+//return Receive_Msg(CLOSED_P) && stTC == TC_CLOSING;
+//}
+//void action41() {
+//Received_Msg(CLOSED_P);
+//stTC = TC_ENDED_FAILED;
+//}
+
+//bool guard42() {
+//return Receive_Msg(CLOSED_P) && stTC == TC_CLOSING;
+//}
+//void action42() {
+//Received_Msg(CLOSED_P);
+//stTC = TC_ENDED_EXITED;
+//}
+
+bool guard39() {
+return Receive_Msg(CLOSED_P) && stTC == TC_CLOSING;
+}
+void action39() {
+Received_Msg(CLOSED_P);
+stTC = TC_ENDED;
+}
+
+bool guard40() {
+return Receive_Msg(CLOSED_P) && (stTC == TC_ENDED_FAILED || stTC == TC_ENDED_EXITED || stTC == TC_ENDED_NOTCOMPLETED || stTC == TC_ENDED);
+}
+void action40() {
+Received_Msg(CLOSED_P);
+}
+
+//bool guard45() {
+//return Receive_Msg(COMPENSATED_P) && stTC == TC_COMPENSATING;
+//}
+//void action45() {
+//Received_Msg(COMPENSATED_P);
+//stTC = TC_ENDED_FAILED;
+//}
+
+//bool guard46() {
+//return Receive_Msg(COMPENSATED_P) && stTC == TC_COMPENSATING;
+//}
+//void action46() {
+//Received_Msg(COMPENSATED_P);
+//stTC = TC_ENDED_EXITED;
+//}
+
+bool guard41() {
+return Receive_Msg(COMPENSATED_P) && stTC == TC_COMPENSATING;
+}
+void action41() {
+Received_Msg(COMPENSATED_P);
+stTC = TC_ENDED;
+}
+
+bool guard42() {
+return Receive_Msg(CANCELED_P) && (stTC == TC_ENDED_FAILED || stTC == TC_ENDED_EXITED || stTC == TC_ENDED_NOTCOMPLETED || stTC == TC_ENDED);
+}
+void action42() {
+Received_Msg(CANCELED_P);
+}
+
+bool receive_msg_exit_In_456789() {
+return (Receive_Msg(EXIT_P) && (stTC == TC_COMPLETED || stTC == TC_CLOSING || stTC == TC_COMPENSATING || stTC == TC_FAILING_ACC || stTC == TC_FAILING_C || stTC == TC_NOT_COMPLETING));
+}
+
+bool receive_msg_Completed_In_017910() {
+return (Receive_Msg(COMPLETED_P) && (stTC == TC_ACTIVE || stTC == TC_CANCELING_ACTIVE || stTC == TC_FAILING_ACC || stTC == TC_NOT_COMPLETING || stTC == TC_EXITING));
+}
+
+bool receive_msg_fail_In_45910() {
+return (Receive_Msg(FAIL_P) && (stTC == TC_COMPLETED || stTC == TC_CLOSING || stTC == TC_NOT_COMPLETING || stTC == TC_EXITING));
+}
+
+bool receive_msg_cannot_complete_In_4567810() {
+return (Receive_Msg(CANNOT_COMPLETE_P) && (stTC == TC_COMPLETED || stTC == TC_CLOSING || stTC == TC_COMPENSATING || stTC == TC_FAILING_ACC || stTC == TC_FAILING_C || stTC == TC_EXITING));
+}
+
+bool receive_msg_canceled_In_0345678910() {
+return (Receive_Msg(CANCELED_P) && (stTC == TC_ACTIVE || stTC == TC_COMPLETING || stTC == TC_COMPLETED || stTC == TC_CLOSING || stTC == TC_COMPENSATING || 
+										stTC == TC_FAILING_ACC || stTC == TC_FAILING_C || stTC == TC_NOT_COMPLETING || stTC == TC_EXITING));
+}
+
+bool receive_msg_closed_In_01234678910() {
+return (Receive_Msg(CLOSED_P) && (stTC == TC_ACTIVE || stTC == TC_CANCELING_ACTIVE || stTC == TC_CANCELING_COMPLETING || stTC == TC_COMPLETING || stTC == TC_COMPLETED || 
+					stTC == TC_COMPENSATING || stTC == TC_FAILING_ACC || stTC == TC_FAILING_C || stTC == TC_NOT_COMPLETING || stTC == TC_EXITING));
+}
+
+bool receive_msg_compensated_In_01234578910() {
+return (Receive_Msg(COMPENSATED_P) && (stTC == TC_ACTIVE || stTC == TC_CANCELING_ACTIVE || stTC == TC_CANCELING_COMPLETING || stTC == TC_COMPLETING || stTC == TC_COMPLETED || 
+				stTC == TC_CLOSING || stTC == TC_FAILING_ACC || stTC == TC_FAILING_C || stTC == TC_NOT_COMPLETING || stTC == TC_EXITING));
+}
+state
+    INVALID,
+    START,
+    S0 {x<=TIRE_OUT+1};
+commit
+    START;
+init START;
+trans
+    S0 -> S0 { guard bufferSizeTc>0 && buffer_Implementation == LOSSY_FIFO; assign bufferSizeTc--;  },
+    S0 -> S0 { guard guard40()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action40(),
+y=0;  },
+    S0 -> S0 { guard guard39(); assign action39(),
+x=0;  },
+    S0 -> S0 { guard guard38()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action38(),
+y=0;  },
+    S0 -> S0 { guard guard37(); assign action37(),
+x=0;  },
+    S0 -> S0 { guard guard36()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action36(),
+y=0;  },
+    S0 -> S0 { guard guard12()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action12(),
+y=0;  },
+    S0 -> S0 { guard guard17(); assign action17(),
+x=0;  },
+    S0 -> S0 { guard guard14()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action14(),
+y=0;  },
+    S0 -> S0 { guard guard24()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action24(),
+y=0;  },
+    S0 -> S0 { guard guard23()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action23(),
+y=0;  },
+    S0 -> S0 { guard guard22()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action22(),
+y=0;  },
+    S0 -> S0 { guard guard42()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action42(),
+y=0;  },
+    S0 -> S0 { guard guard2()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action2(),
+y=0;  },
+    S0 -> S0 { guard guard35()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action35(),
+y=0;  },
+    S0 -> S0 { guard guard34()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action34(),
+y=0;  },
+    S0 -> S0 { guard guard31()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action31(),
+y=0;  },
+    S0 -> S0 { guard guard30()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action30(),
+y=0;  },
+    S0 -> S0 { guard guard29()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action29(),
+y=0;  },
+    S0 -> S0 { guard guard32()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action32(),
+y=0;  },
+    S0 -> S0 { guard guard33(); assign action33(),
+x=0;  },
+    S0 -> S0 { guard guard28(); assign action28(),
+x=0;  },
+    S0 -> S0 { guard guard27(); assign action27(),
+x=0;  },
+    S0 -> S0 { guard guard26()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action26(),
+y=0;  },
+    S0 -> INVALID { guard receive_msg_compensated_In_01234578910();  },
+    S0 -> INVALID { guard receive_msg_closed_In_01234678910();  },
+    S0 -> INVALID { guard receive_msg_canceled_In_0345678910();  },
+    S0 -> INVALID { guard receive_msg_cannot_complete_In_4567810();  },
+    S0 -> INVALID { guard receive_msg_fail_In_45910();  },
+    S0 -> INVALID { guard receive_msg_Completed_In_017910();  },
+    S0 -> INVALID { guard receive_msg_exit_In_456789();  },
+    S0 -> S0 { guard guard13(); assign action13(),
+x=0;  },
+    S0 -> S0 { guard guard16()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action16(),
+y=0;  },
+    S0 -> S0 { guard guard18()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action18(),
+y=0;  },
+    S0 -> S0 { guard guard15(); assign action15(),
+x=0;  },
+    S0 -> S0 { guard guard10()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action10(),
+y=0;  },
+    S0 -> S0 { guard guard8()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action8(),
+y=0;  },
+    S0 -> S0 { guard guard25()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action25(),
+y=0;  },
+    S0 -> S0 { guard guard19()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action19(),
+y=0;  },
+    S0 -> S0 { guard guard21(); assign action21(),
+x=0;  },
+    S0 -> S0 { guard guard20()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action20(),
+y=0;  },
+    START -> S0 {  },
+    /** P-46, 2nd Prepared message */
+    S0 -> S0 { guard guard9(); assign action9(),
+x=0;  },
+    /** P-45, 1st Prepared message */
+    S0 -> S0 { guard guard11(); assign action11(),
+x=0;  },
+    /** p-45, 3rd Register message */
+    S0 -> S0 { guard guard5(); assign action5(),
+x=0;  },
+    /** p-45, 4th Register message */
+    S0 -> S0 { guard guard7(); assign action7(),
+x=0;  },
+    /** p-44, 5th TLA code module */
+    S0 -> S0 { guard guard6()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action6(),
+y=0;  },
+    /** p-43, 4th TLA code module */
+    S0 -> S0 { guard guard4(); assign action4(),
+x=0;  },
+    /** p-43, erd TLA code module */
+    S0 -> S0 { guard guard3()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action3(),
+y=0;  },
+    /** p-43, 2nd TLA code module */
+    S0 -> S0 { guard guard1(); assign action1(),
+x=0;  },
+    /** p-43, 1st TLA code module */
+    S0 -> S0 { guard guard41(); assign action41(),
+x=0;  };
+}
+
+process par() {
+clock x,y;
+
+void Send_Msg(MsgsP s) {
+int i;
+//SET construct
+if (buffer_Implementation == SET) msgP_SET_BAG[s] = true;
+//BAG construct
+if (buffer_Implementation == BAG) {
+	if (msgP_SET_BAG[s] == BUFFER_CAPACITY) overflow = true;
+		else msgP_SET_BAG[s]++; }
+//STUTT_FIFO construct
+if (buffer_Implementation == STUTT_FIFO) {
+	if (bufferSizeP == BUFFER_CAPACITY) overflow = true;
+		else
+   		{
+			if (msgP_FIFO[0] != s and bufferSizeP>0) {
+				for (i = bufferSizeP-1; i>=0; i--) msgP_FIFO[i+1] = msgP_FIFO[i];
+					bufferSizeP++; msgP_FIFO[0] = s;
+                }
+            if (bufferSizeP==0) { bufferSizeP++; msgP_FIFO[0] = s;}
+   		}
+				}
+//SEQ construct
+if (buffer_Implementation == FIFO || buffer_Implementation == LOSSY_FIFO) {
+	if (bufferSizeP == BUFFER_CAPACITY) overflow = true;
+		else   		
+			{ for (i = bufferSizeP-1; i>=0; i--) msgP_FIFO[i+1] = msgP_FIFO[i];
+				bufferSizeP++;
+				msgP_FIFO[0] = s; }
+		}
+}
+
+bool Receive_Msg(MsgsTC r) {
+int i;
+//SET construct
+if (buffer_Implementation == SET) return msgTC_SET_BAG[r];
+//BAG construct
+if (buffer_Implementation == BAG) return (msgTC_SET_BAG[r] >= 1);
+//STUTT_FIFO construct
+if (buffer_Implementation == STUTT_FIFO) {
+	for (i=bufferSizeTc-1; i>=0; i--)
+		if (msgTC_FIFO[i] == r) return true;
+			return false; }
+//SEQ construct
+if (buffer_Implementation == FIFO || buffer_Implementation == LOSSY_FIFO) {
+    if (bufferSizeTc==0) return false;
+	return (msgTC_FIFO[bufferSizeTc-1] == r); }
+return false;
+}
+
+void Received_Msg(MsgsTC r) {
+int i;
+//SET construct
+//if (buffer_Implementation == SET) return ;
+//BAG construct
+if (buffer_Implementation == BAG) msgTC_SET_BAG[r]--;
+//STUTT_FIFO construct
+if (buffer_Implementation == STUTT_FIFO) {
+        i = 0; 
+	while (msgTC_FIFO[i] != r) i++; // msgTC_SEQ[0,i-1] != r
+                bufferSizeTc--;  
+        }
+//SEQ construct
+if (buffer_Implementation == FIFO || buffer_Implementation == LOSSY_FIFO) {
+	bufferSizeTc--; }
+}
+
+//Messages transmitted by the Participant
+
+bool guard43() {
+return stP == P_ACTIVE || stP == P_COMPLETING;
+}
+void action43() {
+Send_Msg(EXIT_P);
+stP = P_EXITING;
+}
+
+bool guard44() {
+return stP == P_EXITING;
+}
+void action44() {
+Send_Msg(EXIT_P);
+}
+
+bool guard45() {
+return stP == P_COMPLETING;
+}
+void action45() {
+Send_Msg(COMPLETED_P);
+stP = P_COMPLETED;
+}
+
+bool guard46() {
+return stP == P_COMPLETED;
+}
+void action46() {
+Send_Msg(COMPLETED_P);
+}
+
+bool guard47() {
+return stP == P_ACTIVE || stP == P_CANCELING || stP == P_COMPLETING;
+}
+void action47() {
+Send_Msg(FAIL_P);
+stP = P_FAILING_ACC;
+}
+
+bool guard48() {
+return stP == P_COMPENSATING;
+}
+void action48() {
+Send_Msg(FAIL_P);
+stP = P_FAILING_C;
+}
+
+bool guard49() {
+return stP == P_FAILING_ACC || stP == P_FAILING_C;
+}
+void action49() {
+Send_Msg(FAIL_P);
+}
+
+bool guard50() {
+return stP == P_ACTIVE || stP == P_COMPLETING;
+}
+void action50() {
+Send_Msg(CANNOT_COMPLETE_P);
+stP = P_NOT_COMPLETING;
+}
+
+bool guard51() {
+return stP == P_NOT_COMPLETING;
+}
+void action51() {
+Send_Msg(CANNOT_COMPLETE_P);
+}
+
+bool guard52() {
+return stP == P_CANCELING;
+}
+void action52() {
+Send_Msg(CANCELED_P);
+stP = P_ENDED_CANCELED;
+}
+
+bool guard53() {
+return stP == P_ENDED_CANCELED;
+}
+void action53() {
+Send_Msg(CANCELED_P);
+}
+
+bool guard54() {
+return stP == P_CLOSING;
+}
+void action54() {
+Send_Msg(CLOSED_P);
+stP = P_ENDED_CLOSED;
+}
+
+bool guard55() {
+return stP == P_ENDED_CLOSED;
+}
+void action55() {
+Send_Msg(CLOSED_P);
+}
+
+bool guard56() {
+return stP == P_COMPENSATING;
+}
+void action56() {
+Send_Msg(COMPENSATED_P);
+stP = P_ENDED_COMPENSATED;
+}
+
+bool guard57() {
+return stP == P_ENDED_COMPENSATED;
+}
+void action57() {
+Send_Msg(COMPENSATED_P);
+}
+//Messages received by the Participant
+
+bool guard58() {
+return Receive_Msg(CANCEL_TC) && (stP == P_ACTIVE || stP == P_COMPLETING);
+}
+void action58() {
+stP = P_CANCELING;
+Received_Msg(CANCEL_TC);
+}
+
+bool guard59() {
+return Receive_Msg(CANCEL_TC) && stP == P_CANCELING;
+}
+void action59() {
+Received_Msg(CANCEL_TC);
+}
+
+bool guard60() {
+return Receive_Msg(CANCEL_TC) && stP == P_COMPLETED;
+}
+void action60() {
+Send_Msg(COMPLETED_P);
+Received_Msg(CANCEL_TC);
+}
+
+bool guard61() {
+return Receive_Msg(CANCEL_TC) && stP == P_CLOSING;
+}
+void action61() {
+Received_Msg(CANCEL_TC);
+}
+
+bool guard62() {
+return Receive_Msg(CANCEL_TC) && stP == P_COMPENSATING;
+}
+void action62() {
+Received_Msg(CANCEL_TC);
+}
+
+bool guard63() {
+return Receive_Msg(CANCEL_TC) && stP == P_FAILING_ACC;
+}
+void action63() {
+Send_Msg(FAIL_P);
+Received_Msg(CANCEL_TC);
+}
+
+bool guard64() {
+return Receive_Msg(CANCEL_TC) && stP == P_FAILING_C;
+}
+void action64() {
+Received_Msg(CANCEL_TC);
+}
+
+bool guard65() {
+return Receive_Msg(CANCEL_TC) && stP == P_NOT_COMPLETING;
+}
+void action65() {
+Send_Msg(CANNOT_COMPLETE_P);
+Received_Msg(CANCEL_TC);
+}
+
+bool guard66() {
+return Receive_Msg(CANCEL_TC) && stP == P_EXITING;
+}
+void action66() {
+Send_Msg(EXIT_P);
+Received_Msg(CANCEL_TC);
+}
+
+bool guard67() {
+return Receive_Msg(CANCEL_TC) && stP == P_ENDED_CANCELED;
+}
+void action67() {
+Send_Msg(CANCELED_P);
+Received_Msg(CANCEL_TC);
+}
+
+bool guard68() {
+return Receive_Msg(CANCEL_TC) && (stP == P_ENDED_CLOSED || stP == P_ENDED_COMPENSATED || stP == P_ENDED);
+}
+void action68() {
+Received_Msg(CANCEL_TC);
+}
+
+bool guard69() {
+return Receive_Msg(COMPLETE_TC) && stP == P_ACTIVE;
+}
+void action69() {
+stP = P_COMPLETING;
+Received_Msg(COMPLETE_TC);
+}
+
+bool guard70() {
+return Receive_Msg(COMPLETE_TC) && stP == P_CANCELING;
+}
+void action70() {
+Received_Msg(COMPLETE_TC);
+}
+
+bool guard71() {
+return Receive_Msg(COMPLETE_TC) && stP == P_COMPLETING;
+}
+void action71() {
+Received_Msg(COMPLETE_TC);
+}
+
+bool guard72() {
+return Receive_Msg(COMPLETE_TC) && stP == P_COMPLETED;
+}
+void action72() {
+Send_Msg(COMPLETED_P);
+Received_Msg(COMPLETE_TC);
+}
+
+bool guard73() {
+return Receive_Msg(COMPLETE_TC) && stP == P_CLOSING;
+}
+void action73() {
+Received_Msg(COMPLETE_TC);
+}
+
+bool guard74() {
+return Receive_Msg(COMPLETE_TC) && stP == P_COMPENSATING;
+}
+void action74() {
+Received_Msg(COMPLETE_TC);
+}
+
+bool guard75() {
+return Receive_Msg(COMPLETE_TC) && stP == P_FAILING_ACC;
+}
+void action75() {
+Send_Msg(FAIL_P);
+Received_Msg(COMPLETE_TC);
+}
+
+bool guard76() {
+return Receive_Msg(COMPLETE_TC) && stP == P_FAILING_C;
+}
+void action76() {
+Received_Msg(COMPLETE_TC);
+}
+
+bool guard77() {
+return Receive_Msg(COMPLETE_TC) && stP == P_NOT_COMPLETING;
+}
+void action77() {
+Send_Msg(CANNOT_COMPLETE_P);
+Received_Msg(COMPLETE_TC);
+}
+
+bool guard78() {
+return Receive_Msg(COMPLETE_TC) && stP == P_EXITING;
+}
+void action78() {
+Send_Msg(EXIT_P);
+Received_Msg(COMPLETE_TC);
+}
+
+bool guard79() {
+return Receive_Msg(COMPLETE_TC) && (stP == P_ENDED_CANCELED || stP == P_ENDED_CLOSED || stP == P_ENDED_COMPENSATED);
+}
+void action79() {
+Send_Msg(FAIL_P);
+Received_Msg(COMPLETE_TC);
+}
+
+bool guard80() { //guardEnded()
+return Receive_Msg(COMPLETE_TC) && stP == P_ENDED;
+}
+void action80() {
+Received_Msg(COMPLETE_TC);
+}
+
+bool guard81() {
+return Receive_Msg(CLOSE_TC) && stP == P_COMPLETED;
+}
+void action81() {
+stP = P_CLOSING;
+Received_Msg(CLOSE_TC);
+}
+
+bool guard82() {
+return Receive_Msg(CLOSE_TC) && stP == P_CLOSING;
+}
+void action82() {
+Received_Msg(CLOSE_TC);
+}
+
+bool guard83() {
+return Receive_Msg(CLOSE_TC) && (stP == P_ENDED_CANCELED || stP == P_ENDED_COMPENSATED || stP == P_ENDED);
+}
+void action83() {
+Received_Msg(CLOSE_TC);
+}
+
+bool guard84() {
+return Receive_Msg(CLOSE_TC) && stP == P_ENDED_CLOSED;
+}
+void action84() {
+Send_Msg(CLOSED_P);
+Received_Msg(CLOSE_TC);
+}
+
+bool guard85() {
+return Receive_Msg(COMPENSATE_TC) && stP == P_COMPLETED;
+}
+void action85() {
+stP = P_COMPENSATING;
+Received_Msg(COMPENSATE_TC);
+}
+
+bool guard86() {
+return Receive_Msg(COMPENSATE_TC) && stP == P_COMPENSATING;
+}
+void action86() {
+Received_Msg(COMPENSATE_TC);
+}
+
+bool guard87() {
+return Receive_Msg(COMPENSATE_TC) && stP == P_FAILING_C;
+}
+void action87() {
+Send_Msg(FAIL_P);
+Received_Msg(COMPENSATE_TC);
+}
+
+bool guard88() {
+return Receive_Msg(COMPENSATE_TC) && (stP == P_ENDED_CANCELED || stP == P_ENDED_CLOSED || stP == P_ENDED);
+}
+void action88() {
+Received_Msg(COMPENSATE_TC);
+}
+
+bool guard89() {
+return Receive_Msg(COMPENSATE_TC) && stP == P_ENDED_COMPENSATED;
+}
+void action89() {
+Send_Msg(COMPENSATED_P);
+Received_Msg(COMPENSATE_TC);
+}
+
+//bool guard95() {
+//return Receive_Msg(FAILED_TC) && (stP == P_FAILING_ACC || stP == P_FAILING_C);
+//}
+//void action95() {
+//stP = P_ENDED_CANCELED;
+//Received_Msg(FAILED_TC);
+//}
+
+//bool guard96() {
+//return  Receive_Msg(FAILED_TC) && (stP == P_FAILING_ACC || stP == P_FAILING_C);
+//}
+//void action96() {
+//stP = P_ENDED_CLOSED;
+//Received_Msg(FAILED_TC);
+//}
+
+bool guard90() {
+return  Receive_Msg(FAILED_TC) && (stP == P_FAILING_ACC || stP == P_FAILING_C);
+}
+void action90() {
+stP = P_ENDED;
+Received_Msg(FAILED_TC);
+}
+
+bool guard91() {
+return Receive_Msg(FAILED_TC) && (stP == P_ENDED_CANCELED || stP == P_ENDED_CLOSED || stP == P_ENDED_COMPENSATED || stP == P_ENDED);
+}
+void action91() {
+Received_Msg(FAILED_TC);
+}
+
+//bool guard99() {
+//return Receive_Msg(EXITED_TC) && stP == P_EXITING;
+//}
+//void action99() {
+//stP = P_ENDED_CANCELED;
+//Received_Msg(EXITED_TC);
+//}
+
+//bool guard100() {
+//return Receive_Msg(EXITED_TC) && stP == P_EXITING;
+//}
+//void action100() {
+//stP = P_ENDED_CLOSED;
+//Received_Msg(EXITED_TC);
+//}
+
+bool guard92() {
+return Receive_Msg(EXITED_TC) && stP == P_EXITING;
+}
+void action92() {
+stP = P_ENDED;
+Received_Msg(EXITED_TC);
+}
+
+bool guard93() {
+return Receive_Msg(EXITED_TC) && (stP == P_ENDED_CANCELED || stP == P_ENDED_CLOSED || stP == P_ENDED_COMPENSATED || stP == P_ENDED);
+}
+void action93() {
+Received_Msg(EXITED_TC);
+}
+
+//bool guard103() {
+//return Receive_Msg(NOT_COMPLETED_TC) && stP == P_NOT_COMPLETING;
+//}
+//void action103() {
+//stP = P_ENDED_CANCELED;
+//Received_Msg(NOT_COMPLETED_TC);
+//}
+
+//bool guard104() {
+//return Receive_Msg(NOT_COMPLETED_TC) && stP == P_NOT_COMPLETING;
+//}
+//void action104() {
+//stP = P_ENDED_CLOSED;
+//Received_Msg(NOT_COMPLETED_TC);
+//}
+
+bool guard94() {
+return Receive_Msg(NOT_COMPLETED_TC) && stP == P_NOT_COMPLETING;
+}
+void action94() {
+stP = P_ENDED;
+Received_Msg(NOT_COMPLETED_TC);
+}
+
+bool guard95() {
+return Receive_Msg(NOT_COMPLETED_TC) && (stP == P_ENDED_CANCELED || stP == P_ENDED_CLOSED || stP == P_ENDED_COMPENSATED || stP == P_ENDED);
+}
+void action95() {
+Received_Msg(NOT_COMPLETED_TC);
+}
+
+bool receive_close_In_01256789() {
+return Receive_Msg(CLOSE_TC) && (stP == P_ACTIVE || stP == P_CANCELING || stP == P_COMPLETING || stP == P_COMPENSATING || stP == P_FAILING_ACC || stP == P_FAILING_C || stP == P_NOT_COMPLETING || stP == P_EXITING);
+}
+
+bool receive_compensate_In_0124689() {
+return Receive_Msg(COMPENSATE_TC) && (stP == P_ACTIVE || stP == P_CANCELING || stP == P_COMPLETING || stP == P_CLOSING || stP == P_FAILING_ACC || stP == P_NOT_COMPLETING || stP == P_EXITING);
+}
+
+bool receive_failed_In_01234589() {
+return Receive_Msg(FAILED_TC) && (stP == P_ACTIVE || stP == P_CANCELING || stP == P_COMPLETING || stP == P_COMPLETED || stP == P_CLOSING || stP == P_COMPENSATING || stP == P_NOT_COMPLETING || stP == P_EXITING);
+}
+
+bool receive_exited_In_012345678() {
+return Receive_Msg(EXITED_TC) && (stP == P_ACTIVE || stP == P_CANCELING || stP == P_COMPLETING || stP == P_COMPLETED || stP == P_CLOSING || stP == P_COMPENSATING || 
+												stP == P_FAILING_ACC || stP == P_FAILING_C || stP == P_NOT_COMPLETING);
+}
+
+bool receive_NotCompleted_In_012345679() {
+return Receive_Msg(NOT_COMPLETED_TC) && (stP == P_ACTIVE || stP == P_CANCELING || stP == P_COMPLETING || stP == P_COMPLETED || stP == P_CLOSING || stP == P_COMPENSATING || 
+												stP == P_FAILING_ACC || stP == P_FAILING_C || stP == P_EXITING);
+} 
+state
+    INVALID,
+    START,
+    S0 {x<=TIRE_OUT+1};
+commit
+    START;
+init START;
+trans
+    S0 -> S0 { guard guard80()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action80(),
+y=0;  },
+    S0 -> S0 { guard bufferSizeP>0 && buffer_Implementation == LOSSY_FIFO; assign bufferSizeP--;  },
+    S0 -> S0 { guard guard95()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action95(),
+y=0;  },
+    S0 -> S0 { guard guard94(); assign action94(),
+x=0;  },
+    S0 -> S0 { guard guard93()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action93(),
+y=0;  },
+    S0 -> S0 { guard guard92(); assign action92(),
+x=0;  },
+    S0 -> S0 { guard guard91()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action91(),
+y=0;  },
+    S0 -> S0 { guard guard90(); assign action90(),
+x=0;  },
+    S0 -> S0 { guard guard70()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action70(),
+y=0;  },
+    S0 -> S0 { guard guard69(); assign action69(),
+x=0;  },
+    S0 -> S0 { guard guard67()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action67(),
+y=0;  },
+    S0 -> S0 { guard guard88()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action88(),
+y=0;  },
+    S0 -> S0 { guard guard84()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action84(),
+y=0;  },
+    S0 -> S0 { guard guard82()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action82(),
+y=0;  },
+    S0 -> S0 { guard guard79()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action79(),
+y=0;  },
+    S0 -> S0 { guard guard77()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action77(),
+y=0;  },
+    S0 -> S0 { guard guard89()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action89(),
+y=0;  },
+    S0 -> S0 { guard guard87()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action87(),
+y=0;  },
+    S0 -> S0 { guard guard86()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action86(),
+y=0;  },
+    S0 -> S0 { guard guard75()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action75(),
+y=0;  },
+    S0 -> S0 { guard guard85(); assign action85(),
+x=0;  },
+    S0 -> S0 { guard guard83()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action83(),
+y=0;  },
+    S0 -> S0 { guard guard81(); assign action81(),
+x=0;  },
+    S0 -> S0 { guard guard78()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action78(),
+y=0;  },
+    S0 -> S0 { guard guard76()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action76(),
+y=0;  },
+    S0 -> S0 { guard guard74()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action74(),
+y=0;  },
+    S0 -> S0 { guard guard73()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action73(),
+y=0;  },
+    S0 -> S0 { guard guard68()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action68(),
+y=0;  },
+    S0 -> S0 { guard guard72()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action72(),
+y=0;  },
+    S0 -> S0 { guard guard71()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action71(),
+y=0;  },
+    S0 -> S0 { guard guard66()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action66(),
+y=0;  },
+    S0 -> S0 { guard guard65()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action65(),
+y=0;  },
+    S0 -> S0 { guard guard64()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action64(),
+y=0;  },
+    S0 -> INVALID { guard receive_NotCompleted_In_012345679();  },
+    S0 -> INVALID { guard receive_exited_In_012345678();  },
+    S0 -> INVALID { guard receive_failed_In_01234589();  },
+    S0 -> INVALID { guard receive_compensate_In_0124689();  },
+    S0 -> INVALID { guard receive_close_In_01256789();  },
+    S0 -> S0 { guard guard56(); assign action56(),
+x=0;  },
+    S0 -> S0 { guard guard58(); assign action58(),
+x=0;  },
+    S0 -> S0 { guard guard59()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action59(),
+y=0;  },
+    S0 -> S0 { guard guard57()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action57(),
+y=0;  },
+    S0 -> S0 { guard guard54(); assign action54(),
+x=0;  },
+    S0 -> S0 { guard guard52(); assign action52(),
+x=0;  },
+    S0 -> S0 { guard guard63()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action63(),
+y=0;  },
+    S0 -> S0 { guard guard60()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action60(),
+y=0;  },
+    S0 -> S0 { guard guard62()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action62(),
+y=0;  },
+    S0 -> S0 { guard guard61()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action61(),
+y=0;  },
+    START -> S0 {  },
+    /** p-48, 1st Committed message */
+    S0 -> S0 { guard guard45(); assign action45(),
+x=0;  },
+    /** p-47, 1st Aborted message */
+    S0 -> S0 { guard guard43(); assign action43(),
+x=0;  },
+    /** P-46, 2nd Prepared message */
+    S0 -> S0 { guard guard53()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action53(),
+y=0;  },
+    /** P-45, 1st Prepared message */
+    S0 -> S0 { guard guard55()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action55(),
+y=0;  },
+    /** p-45, 3rd Register message */
+    S0 -> S0 { guard guard49()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action49(),
+y=0;  },
+    /** p-45, 4th Register message */
+    S0 -> S0 { guard guard51()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action51(),
+y=0;  },
+    /** p-44, 5th TLA code module */
+    S0 -> S0 { guard guard50(); assign action50(),
+x=0;  },
+    /** p-43, 4th TLA code module */
+    S0 -> S0 { guard guard48(); assign action48(),
+x=0;  },
+    /** p-43, erd TLA code module */
+    S0 -> S0 { guard guard47(); assign action47(),
+x=0;  },
+    /** p-43, 2nd TLA code module */
+    S0 -> S0 { guard guard46()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action46(),
+y=0;  },
+    /** p-43, 1st TLA code module */
+    S0 -> S0 { guard guard44()&&
+x<=TIRE_OUT&&
+y>=MIN_DELAY; assign action44(),
+y=0;  };
+}
+tc = Coordinator();
+//p = Participant_T();
+system tc, par;

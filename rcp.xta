@@ -1,0 +1,218 @@
+const int delay = 30;
+const int rc_fast_min = 76;
+const int rc_fast_max = 85;
+const int rc_slow_max = 167;
+const int rc_slow_min = 159;
+
+
+chan snd_idle12;
+chan rec_ack12;
+chan snd_idle21;
+chan snd_ack21;
+chan rec_ack21;
+chan snd_ack12;
+chan rec_req21;
+chan snd_req21;
+chan snd_req12;
+chan root2;
+chan child2;
+chan child1;
+chan root1;
+chan rec_idle21;
+chan rec_req12;
+chan rec_idle12;
+
+process node1() {
+	clock ckN1;
+
+	state
+		N1root_contention { ckN1 <= 0 },
+		N1rec_req_fast { ckN1 <= rc_fast_max },
+		N1rec_req_slow { ckN1 <= rc_slow_max },
+		N1almost_root { ckN1 <= 0 },
+		N1root,
+		N1rec_idle { ckN1 <= 0 },
+		N1rec_idle_fast { ckN1 <= rc_fast_max },
+		N1rec_idle_slow { ckN1 <= rc_slow_max },
+		N1snt_req,
+		N1almost_child { ckN1 <= 0 },
+		N1child;
+
+	init N1root_contention;
+
+	trans
+		N1rec_req_slow -> N1almost_root { guard ckN1 >= rc_slow_min; sync snd_ack12!; assign ckN1 = 0; },
+		N1snt_req -> N1almost_child { sync rec_ack21!; assign ckN1 = 0; },
+		N1almost_child -> N1child { sync child1!; },
+		N1rec_idle -> N1root_contention { sync rec_req21?; assign ckN1 = 0; },
+		N1root_contention -> N1rec_req_slow { sync snd_idle12!; assign ckN1 = 0; },
+		N1root_contention -> N1rec_req_fast { sync snd_idle12!; assign ckN1 = 0; },
+		N1root_contention -> N1rec_idle { sync rec_idle21!; assign ckN1 = 0; },
+		N1rec_idle_fast -> N1rec_req_fast { sync rec_req21?; },
+		N1snt_req -> N1root_contention { sync rec_req21?; assign ckN1 = 0; },
+		N1rec_req_fast -> N1rec_idle_fast { sync rec_idle21!; },
+		N1rec_idle_slow -> N1snt_req { guard ckN1 >= rc_slow_min; sync snd_req12!; },
+		N1rec_req_fast -> N1almost_root { guard ckN1 >= rc_fast_min; sync snd_ack12!; assign ckN1 = 0; },
+		N1rec_idle_slow -> N1rec_req_slow { sync rec_req21?; },
+		N1almost_root -> N1root { sync root1!; },
+		N1rec_req_slow -> N1rec_idle_slow { sync rec_idle21!; },
+		N1rec_idle_fast -> N1snt_req { guard ckN1 >= rc_fast_min; sync snd_req12!; },
+		N1rec_idle -> N1rec_idle_fast { sync snd_idle12!; assign ckN1 = 0; },
+		N1rec_idle -> N1rec_idle_slow { sync snd_idle12!; assign ckN1 = 0; };
+}
+process node2() {
+	clock ckN2;
+
+	state
+		N2root_contention { ckN2 <= 0 },
+		N2rec_req_fast { ckN2 <= rc_fast_max },
+		N2rec_req_slow { ckN2 <= rc_slow_max },
+		N2almost_root { ckN2 <= 0 },
+		N2root,
+		N2rec_idle { ckN2 <= 0 },
+		N2rec_idle_fast { ckN2 <= rc_fast_max },
+		N2rec_idle_slow { ckN2 <= rc_slow_max },
+		N2snt_req,
+		N2almost_child { ckN2 <= 0 },
+		N2child;
+
+	init N2root_contention;
+
+	trans
+		N2rec_idle -> N2rec_idle_slow { sync snd_idle21!; assign ckN2 = 0; },
+		N2almost_child -> N2child { sync child2!; },
+		N2rec_idle -> N2rec_idle_fast { sync snd_idle21!; assign ckN2 = 0; },
+		N2rec_idle_slow -> N2snt_req { guard ckN2 >= rc_slow_min; sync snd_req21!; },
+		N2rec_idle_fast -> N2rec_req_fast { sync rec_req12?; },
+		N2rec_req_fast -> N2rec_idle_fast { sync rec_idle12!; },
+		N2root_contention -> N2rec_req_slow { sync snd_idle21!; assign ckN2 = 0; },
+		N2snt_req -> N2root_contention { sync rec_req12?; assign ckN2 = 0; },
+		N2rec_idle_fast -> N2snt_req { guard ckN2 >= rc_fast_min; sync snd_req21!; },
+		N2snt_req -> N2almost_child { sync rec_ack12!; assign ckN2 = 0; },
+		N2rec_req_slow -> N2rec_idle_slow { sync rec_idle12!; },
+		N2root_contention -> N2rec_req_fast { sync snd_idle21!; assign ckN2 = 0; },
+		N2almost_root -> N2root { sync root2!; },
+		N2rec_idle_slow -> N2rec_req_slow { sync rec_req12?; },
+		N2rec_req_fast -> N2almost_root { guard ckN2 >= rc_fast_min; sync snd_ack21!; assign ckN2 = 0; },
+		N2root_contention -> N2rec_idle { sync rec_idle12!; assign ckN2 = 0; },
+		N2rec_req_slow -> N2almost_root { guard ckN2 >= rc_slow_min; sync snd_ack21!; assign ckN2 = 0; },
+		N2rec_idle -> N2root_contention { sync rec_req12?; assign ckN2 = 0; };
+}
+process wire12() {
+	clock ckW12y;
+	clock ckW12x;
+
+	state
+		W12empty,
+		W12rec_ack { ckW12y <= delay },
+		W12rec_idle { ckW12y <= delay },
+		W12rec_req { ckW12y <= delay },
+		W12rec_ack_idle { ckW12x <= delay },
+		W12rec_idle_req { ckW12x <= delay },
+		W12rec_req_ack { ckW12x <= delay },
+		W12rec_ack_req { ckW12x <= delay },
+		W12rec_idle_ack { ckW12x <= delay },
+		W12rec_req_idle { ckW12x <= delay };
+
+	init W12empty;
+
+	trans
+		W12rec_req_ack -> W12rec_ack { sync rec_req12!; },
+		W12rec_req_idle -> W12rec_idle { sync rec_req12!; },
+		W12empty -> W12rec_idle { sync snd_idle12?; assign ckW12x = 0, ckW12y = 0; },
+		W12rec_idle -> W12rec_idle_req { sync snd_req12?; assign ckW12y = 0; },
+		W12empty -> W12rec_ack { sync snd_ack12?; assign ckW12x = 0, ckW12y = 0; },
+		W12rec_idle -> W12rec_idle { sync snd_idle12?; },
+		W12rec_req -> W12empty { sync rec_req12!; },
+		W12rec_idle_ack -> W12rec_idle_ack { sync snd_ack12?; },
+		W12rec_req_idle -> W12rec_req_idle { sync snd_idle12?; },
+		W12empty -> W12rec_req { sync snd_req12?; assign ckW12x = 0, ckW12y = 0; },
+		W12rec_req -> W12rec_req_idle { sync snd_idle12?; assign ckW12y = 0; },
+		W12rec_req -> W12rec_req_ack { sync snd_ack12?; assign ckW12y = 0; },
+		W12rec_idle_req -> W12rec_idle_req { sync snd_req12?; },
+		W12rec_ack -> W12rec_ack_idle { sync snd_idle12?; assign ckW12y = 0; },
+		W12rec_idle -> W12rec_idle_ack { sync snd_ack12?; assign ckW12y = 0; },
+		W12rec_ack_idle -> W12rec_ack_idle { sync snd_idle12?; },
+		W12rec_ack -> W12empty { sync rec_ack12?; },
+		W12rec_ack_req -> W12rec_req { sync rec_ack12?; },
+		W12rec_idle_req -> W12rec_req { sync rec_idle12?; },
+		W12rec_req_ack -> W12rec_req_ack { sync snd_ack12?; },
+		W12rec_ack_idle -> W12rec_idle { sync rec_ack12?; },
+		W12rec_idle -> W12empty { sync rec_idle12?; },
+		W12rec_ack -> W12rec_ack { sync snd_ack12?; },
+		W12rec_ack_req -> W12rec_ack_req { sync snd_req12?; },
+		W12rec_idle_ack -> W12rec_ack { sync rec_idle12?; },
+		W12rec_ack -> W12rec_ack_req { sync snd_req12?; assign ckW12y = 0; },
+		W12rec_req -> W12rec_req { sync snd_req12?; };
+}
+process wire21() {
+	clock ckW21y;
+	clock ckW21x;
+
+	state
+		W21empty,
+		W21rec_ack { ckW21y <= delay },
+		W21rec_idle { ckW21y <= delay },
+		W21rec_req { ckW21y <= delay },
+		W21rec_ack_idle { ckW21x <= delay },
+		W21rec_idle_req { ckW21x <= delay },
+		W21rec_req_ack { ckW21x <= delay },
+		W21rec_ack_req { ckW21x <= delay },
+		W21rec_idle_ack { ckW21x <= delay },
+		W21rec_req_idle { ckW21x <= delay };
+
+	init W21empty;
+
+	trans
+		W21rec_ack -> W21rec_ack_idle { sync snd_idle21?; assign ckW21y = 0; },
+		W21rec_ack_req -> W21rec_req { sync rec_ack21?; },
+		W21rec_idle_req -> W21rec_req { sync rec_idle21?; },
+		W21rec_req_ack -> W21rec_req_ack { sync snd_ack21?; },
+		W21empty -> W21rec_ack { sync snd_ack21?; assign ckW21x = 0, ckW21y = 0; },
+		W21rec_req -> W21rec_req_idle { sync snd_idle21?; assign ckW21y = 0; },
+		W21rec_ack -> W21empty { sync rec_ack21?; },
+		W21rec_ack_idle -> W21rec_ack_idle { sync snd_idle21?; },
+		W21rec_ack -> W21rec_ack { sync snd_ack21?; },
+		W21rec_ack_idle -> W21rec_idle { sync rec_ack21?; },
+		W21empty -> W21rec_req { sync snd_req21?; assign ckW21x = 0, ckW21y = 0; },
+		W21rec_req -> W21rec_req_ack { sync snd_ack21?; assign ckW21y = 0; },
+		W21rec_idle -> W21empty { sync rec_idle21?; },
+		W21rec_ack_req -> W21rec_ack_req { sync snd_req21?; },
+		W21rec_idle_ack -> W21rec_ack { sync rec_idle21?; },
+		W21rec_req -> W21rec_req { sync snd_req21?; },
+		W21rec_req_ack -> W21rec_ack { sync rec_req21!; },
+		W21rec_req -> W21empty { sync rec_req21!; },
+		W21rec_idle_ack -> W21rec_idle_ack { sync snd_ack21?; },
+		W21rec_idle -> W21rec_idle { sync snd_idle21?; },
+		W21rec_ack -> W21rec_ack_req { sync snd_req21?; assign ckW21y = 0; },
+		W21rec_req_idle -> W21rec_req_idle { sync snd_idle21?; },
+		W21empty -> W21rec_idle { sync snd_idle21?; assign ckW21x = 0, ckW21y = 0; },
+		W21rec_idle -> W21rec_idle_ack { sync snd_ack21?; assign ckW21y = 0; },
+		W21rec_req_idle -> W21rec_idle { sync rec_req21!; },
+		W21rec_idle -> W21rec_idle_req { sync snd_req21?; assign ckW21y = 0; },
+		W21rec_idle_req -> W21rec_idle_req { sync snd_req21?; };
+}
+process s1o() {
+
+	state
+		S1oStart,
+		S1o1,
+		S1o2,
+		S1o3,
+		S1o4,
+		S1oEnd;
+
+	init S1oStart;
+
+	trans
+		S1o1 -> S1oEnd { sync child2?; },
+		S1oStart -> S1o2 { sync child1?; },
+		S1oStart -> S1o3 { sync child2?; },
+		S1oStart -> S1o1 { sync root1?; },
+		S1oStart -> S1o4 { sync root2?; },
+		S1o2 -> S1oEnd { sync root2?; },
+		S1o3 -> S1oEnd { sync root1?; },
+		S1o4 -> S1oEnd { sync child1?; };
+}
+
+system node1, node2, wire12, wire21, s1o;

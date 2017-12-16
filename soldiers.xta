@@ -1,0 +1,40 @@
+//
+// Global Declarations
+//
+
+clock x,y;
+
+int first,
+     second,
+     back,
+     InSafety;
+process aSoldier(const id; const delay){
+
+state Peril, Safety, OnBridge, OnWayBack;
+init Peril;
+trans Peril -> Safety {guard first == 0; assign first := id,
+InSafety := InSafety+1; },
+Peril -> OnBridge {guard second == 0,
+first > id; assign second := id,
+x:=0; },
+OnBridge -> Safety {guard x == delay; assign InSafety := InSafety+1,
+back := 1; },
+OnWayBack -> Peril {guard x == delay; assign first := 0,
+second := 0; },
+Safety -> OnWayBack {guard back == 1; assign back := 0, x:=0,
+InSafety := InSafety-1; };
+}
+process aObserver(const delay){
+
+state Wait, Escape;
+init Wait;
+trans Wait -> Escape {guard y == delay,
+InSafety == 4; };
+}
+S1 := aSoldier(1,25);
+S2 := aSoldier(2,20);
+S3 := aSoldier(3,10);
+S4 := aSoldier(4,5);
+
+E := aObserver(60);
+system S1,S2,S3,S4,E;

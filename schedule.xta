@@ -1,0 +1,285 @@
+/*
+*  --------- BEGIN CONFIGURATION SECTION
+*/
+const bool Periodic = true;
+
+const int MaxTime = 21;
+typedef int[0,MaxTime] time_t;
+
+const int Tasks = 5;                 // Number of tasks
+typedef int[0,Tasks-1] t_id;
+
+const int Procs = 3;                 // Number of resources
+typedef int[0,Procs-1] r_id;
+
+typedef struct { 
+  time_t initial_offset;
+  time_t min_period;
+  time_t max_period;
+  time_t offset;
+  time_t deadline;
+  time_t bcet;
+  time_t wcet;
+  r_id resource;
+  int pri;  
+} task_t;
+
+//init_offset, min_period, max_period, offset, deadline, bcet, wcet, resource, priority
+const task_t task[Tasks] = {
+{0,20,20,0,20,6,6,0,1},
+{0,20,20,0,20,6,6,0,1},
+{0,20,20,0,20,10,10,1,1},
+{0,20,20,0,20,4,4,1,1},
+{0,20,20,0,20,5,5,2,1}
+};
+
+typedef struct {
+  int[0,Tasks] length;
+  t_id element[Tasks];
+} buffer_t; 
+
+buffer_t buffer[Procs];
+
+const int Policies      = 3;
+const int EDF  		= 0;
+const int FIFO 		= 1;
+const int FPS  		= 2;
+
+chan inserted, insert_task[Policies];
+typedef int[0,Policies-1] policy_t;
+
+/*
+* Task graph definition of dependencies
+*
+* Meaning of Depend[i][j]:
+*    - 0/false : task i does not depend on task j
+*    - 1/true  : task i depends on task j
+*/
+const bool Depend[Tasks][Tasks] = {  // Task graph
+{0,0,0,0,0},
+{1,0,0,0,0},
+{0,0,0,0,0},
+{0,0,1,0,1},
+{1,0,0,0,0}
+};
+
+/*
+*  --------- END CONFIGURATION SECTION
+*/
+clock time[Tasks];//, exec[Tasks];
+bool complete[Tasks];
+
+
+urgent chan ready[Procs];
+chan finished[Tasks];//run[Procs+1], stop[Procs], done[Procs];
+
+
+meta struct {
+  meta t_id task;
+  meta r_id resource;
+  meta bool preempt;
+} param;
+
+void setParams(t_id t, r_id r, bool preempt) {
+  param.task = t; param.resource = r; param.preempt = preempt;
+}
+
+meta t_id ready_task;
+
+void insert_at(int[0,Tasks] pos, t_id tid, r_id rid) {
+  int i;
+  for(i = buffer[rid].length; i > pos; i--) {
+    buffer[rid].element[i] = buffer[rid].element[i-1];
+  }
+  buffer[rid].element[pos] = tid;
+  buffer[rid].length++;
+
+}
+
+
+
+process Resource(const r_id id, bool preemptive, policy_t policy) {
+
+void removeTask() {
+  int i = 0;
+  buffer[id].length--;
+  do {
+    buffer[id].element[i] = buffer[id].element[i+1];
+    i++;
+  } while (i < buffer[id].length);
+  buffer[id].element[buffer[id].length] = 0;
+}
+
+t_id front() { return buffer[id].element[0]; }
+
+bool empty() {
+  return buffer[id].length == 0;
+}
+state
+    S0,
+    S1,
+    S2,
+    InUse,
+    Idle;
+commit
+    S0,
+    S1,
+    S2;
+init Idle;
+trans
+    S1 -> InUse { guard empty(); assign insert_at(0,ready_task,id);  },
+    S0 -> InUse { sync inserted?;  },
+    S1 -> S0 { guard !empty(); sync insert_task[policy]!; assign setParams(ready_task,id,preemptive);  },
+    InUse -> S2 { sync finished[front()]?; assign removeTask();  },
+    InUse -> S1 { sync ready[id]?;  },
+    S2 -> InUse { guard !empty();  },
+    S2 -> Idle { guard empty();  },
+    Idle -> S1 { sync ready[id]?;  };
+}
+
+process Task(const t_id id) {
+clock x;
+
+bool dependencies_met() {
+  return forall (j : t_id)  Depend[id][j] imply complete[j];
+}
+
+void completed() {
+  complete[id] = true;
+}
+
+void new_period() {
+//  int i = 0;
+//  for ( i  = 0; i < Tasks; i++) {
+//    complete[i] = false;
+//  }
+  complete[id] = false;
+}
+
+time_t initialOffset() { return task[id].initial_offset; }
+time_t minPeriod() { return task[id].min_period; }
+time_t maxPeriod() { return task[id].max_period; }
+time_t offset() { return task[id].offset; }
+time_t deadline() { return task[id].deadline; }
+time_t BCET() { return task[id].bcet; }
+time_t WCET() { return task[id].wcet; }
+time_t resource() { return task[id].resource; }
+time_t priotiry() { return task[id].pri; }
+
+int[0,1] isRunning() {
+  return (buffer[resource()].element[0] == id? 1 : 0);
+}
+
+
+
+state
+    WaitingDepedency {x' == 0},
+    Done {x' == 0},
+    S0,
+    S1,
+    Initial {x' == 0 &&
+time[id] <= initialOffset()},
+    Error,
+    PeriodDone {x' == 0 &&
+time[id] <= maxPeriod()},
+    Ready {x' == isRunning() &&
+x <= WCET()},
+    WaitingOffset {x' == 0 &&
+time[id] <= offset()};
+commit
+    S0,
+    S1;
+init Initial;
+trans
+    WaitingOffset -> WaitingDepedency { guard time[id] == offset();  },
+    S0 -> Done { guard !Periodic;  },
+    S0 -> PeriodDone { guard Periodic;  },
+    Initial -> S1 { guard time[id] == initialOffset();  },
+    S1 -> WaitingOffset { assign time[id] = 0, x = 0,
+new_period();  },
+    PeriodDone -> S1 { guard time[id] >= minPeriod();  },
+    Ready -> Error { guard time[id] > deadline();  },
+    Ready -> S0 { guard x >= BCET(); sync finished[id]!; assign completed();  },
+    WaitingDepedency -> Ready { guard dependencies_met(); sync ready[resource()]!; assign ready_task = id;  };
+}
+
+process Policy_FIFO() {
+
+state
+    S0,
+    S1;
+commit
+    S0;
+init S1;
+trans
+    S0 -> S1 { sync inserted!;  },
+    S1 -> S0 { sync insert_task[FIFO]?; assign insert_at(buffer[param.resource].length,
+	param.task,
+	param.resource);  };
+}
+
+process Policy_FPS() {
+
+void insert_task_in_buffer() {
+  t_id t = param.task;
+  r_id r = param.resource;
+  int place = (param.preempt ? 0 : 1);
+  int i;
+  // Find out where to put the task
+  while ( place < buffer[r].length && task[buffer[r].element[place]].pri >= task[t].pri ) {
+    place++;
+  }
+  insert_at(place,t,r);
+}
+state
+    S0,
+    S1;
+commit
+    S0;
+init S1;
+trans
+    S0 -> S1 { sync inserted!;  },
+    S1 -> S0 { sync insert_task[FPS]?; assign insert_task_in_buffer();  };
+}
+
+process Policy_EDF() {
+int[0,Tasks] place;
+t_id tid;
+r_id rid;
+bool preempt;
+
+void readParameters() {
+  tid = param.task; rid = param.resource; preempt = param.preempt;
+}
+
+void resetVars() {
+  place = tid = rid = 0;
+}
+state
+    S0,
+    S1,
+    S2;
+commit
+    S0,
+    S1;
+init S2;
+trans
+    S0 -> S2 { sync inserted!; assign resetVars();  },
+    S1 -> S1 { guard place < buffer[rid].length &&
+time[tid]-task[tid].deadline <=
+time[buffer[rid].element[place]] - task[buffer[rid].element[place]].deadline; assign place++;  },
+    S1 -> S0 { guard place == buffer[rid].length ||
+time[tid]-task[tid].deadline >
+time[buffer[rid].element[place]] - task[buffer[rid].element[place]].deadline; assign insert_at(place,tid,rid);  },
+    S2 -> S1 { sync insert_task[EDF]?; assign readParameters(),
+place = (preempt ? 0 : 1);  };
+}
+
+
+//Task id, res. ass., bcet, wcet, deadline, offset, period
+
+P0  = Resource(0,true,FPS);
+P1  = Resource(1,true,FPS);
+Bus = Resource(2,false,FIFO);
+
+system Task, P0, P1, Bus, Policy_FPS, Policy_FIFO;

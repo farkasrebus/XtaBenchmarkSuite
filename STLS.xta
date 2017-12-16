@@ -1,0 +1,308 @@
+clock ControlUnit_y0;
+clock SPS1_z;
+clock SPS2_z;
+int[0,6] ControlUnit_IntStat := 0;
+int[0,4] AKT1_IntStat := 0;
+int[0,4] AKT2_IntStat := 0;
+int[0,2] EC1_number := 0;
+int[0,2] polled_ControlUnit_numEC1 := 0;
+int[0,2] EC2_number := 0;
+int[0,2] polled_ControlUnit_numEC2 := 0;
+int[0,2] CL2_number := 0;
+int[0,2] polled_ControlUnit_numCL2 := 0;
+int[0,2] CL1_number := 0;
+int[0,2] polled_ControlUnit_numCL1 := 0;
+int[0,1] ControlUnit_drive1 := 0;
+int[0,1] ErrorDetection_error := 0;
+int[0,1] polled_AKT1_error := 0;
+int[0,2] polled_AKT1_waitingTrains := 0;
+int[0,1] ControlUnit_drive2 := 0;
+int[0,1] polled_AKT2_permission := 0;
+int[0,1] polled_AKT2_error := 0;
+int[0,2] polled_AKT2_waitingTrains := 0;
+int[0,1] update_ControlUnit_drive2 := 0;
+int[0,1] update_ControlUnit_drive1 := 0;
+int[0,2] AKT2_signal := 0;
+int[0,2] update_AKT2_signal := 0;
+int[0,2] AKT1_signal := 0;
+int[0,2] update_AKT1_signal := 0;
+chan channel_SPS1_ControlUnit;
+chan channel_SPS1_AKT1;
+chan channel_SPS2_AKT2;
+
+process ControlUnit {
+
+    state Track1_Ready, Track1_Finished, Track2_Finished, Track1_Drive, Track2_Drive, Track2_Ready;
+    init Track1_Ready;
+    trans 
+    Track1_Ready -> Track1_Ready { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 0 && polled_ControlUnit_numEC2 == 0 && ControlUnit_drive1 == 0; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 1; },
+    Track1_Ready -> Track1_Ready { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 1 && polled_ControlUnit_numEC2 == 0 && ControlUnit_drive1 == 0; sync channel_SPS1_ControlUnit!;assign update_ControlUnit_drive1 := 1, ControlUnit_IntStat := 4; },
+    Track1_Ready -> Track1_Ready { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 2 && polled_ControlUnit_numEC2 == 0 && ControlUnit_drive1 == 0; sync channel_SPS1_ControlUnit!;assign update_ControlUnit_drive1 := 1, ControlUnit_IntStat := 4; },
+    Track1_Ready -> Track1_Ready { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 0 && polled_ControlUnit_numEC2 == 1 && ControlUnit_drive1 == 0; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 6; },
+    Track1_Ready -> Track1_Ready { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 1 && polled_ControlUnit_numEC2 == 1 && ControlUnit_drive1 == 0; sync channel_SPS1_ControlUnit!;assign update_ControlUnit_drive1 := 1, ControlUnit_IntStat := 4; },
+    Track1_Ready -> Track1_Ready { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 2 && polled_ControlUnit_numEC2 == 1 && ControlUnit_drive1 == 0; sync channel_SPS1_ControlUnit!;assign update_ControlUnit_drive1 := 1, ControlUnit_IntStat := 4; },
+    Track1_Ready -> Track1_Ready { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 0 && polled_ControlUnit_numEC2 == 2 && ControlUnit_drive1 == 0; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 6; },
+    Track1_Ready -> Track1_Ready { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 1 && polled_ControlUnit_numEC2 == 2 && ControlUnit_drive1 == 0; sync channel_SPS1_ControlUnit!;assign update_ControlUnit_drive1 := 1, ControlUnit_IntStat := 4; },
+    Track1_Ready -> Track1_Ready { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 2 && polled_ControlUnit_numEC2 == 2 && ControlUnit_drive1 == 0; sync channel_SPS1_ControlUnit!;assign update_ControlUnit_drive1 := 1, ControlUnit_IntStat := 4; },
+    Track1_Ready -> Track1_Ready { guard ControlUnit_IntStat == 1; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track1_Ready -> Track1_Finished { guard ControlUnit_IntStat == 2; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track1_Ready -> Track2_Finished { guard ControlUnit_IntStat == 3; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track1_Ready -> Track1_Drive { guard ControlUnit_IntStat == 4; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track1_Ready -> Track2_Drive { guard ControlUnit_IntStat == 5; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track1_Ready -> Track2_Ready { guard ControlUnit_IntStat == 6; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track1_Finished -> Track1_Finished { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numCL1 == 0 && ControlUnit_y0 < 20; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 2; },
+    Track1_Finished -> Track1_Finished { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numCL1 == 0 && ControlUnit_y0 >= 20; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 6; },
+    Track1_Finished -> Track1_Finished { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numCL1 == 1; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 2; },
+    Track1_Finished -> Track1_Finished { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numCL1 == 2; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 2; },
+    Track1_Finished -> Track1_Ready { guard ControlUnit_IntStat == 1; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track1_Finished -> Track1_Finished { guard ControlUnit_IntStat == 2; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0; },
+    Track1_Finished -> Track2_Finished { guard ControlUnit_IntStat == 3; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track1_Finished -> Track1_Drive { guard ControlUnit_IntStat == 4; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track1_Finished -> Track2_Drive { guard ControlUnit_IntStat == 5; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track1_Finished -> Track2_Ready { guard ControlUnit_IntStat == 6; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track2_Finished -> Track2_Finished { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numCL2 == 0 && ControlUnit_y0 < 19; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 3; },
+    Track2_Finished -> Track2_Finished { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numCL2 == 0 && ControlUnit_y0 >= 19; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 1; },
+    Track2_Finished -> Track2_Finished { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numCL2 == 1; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 3; },
+    Track2_Finished -> Track2_Finished { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numCL2 == 2; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 3; },
+    Track2_Finished -> Track1_Ready { guard ControlUnit_IntStat == 1; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track2_Finished -> Track1_Finished { guard ControlUnit_IntStat == 2; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track2_Finished -> Track2_Finished { guard ControlUnit_IntStat == 3; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0; },
+    Track2_Finished -> Track1_Drive { guard ControlUnit_IntStat == 4; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track2_Finished -> Track2_Drive { guard ControlUnit_IntStat == 5; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track2_Finished -> Track2_Ready { guard ControlUnit_IntStat == 6; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track1_Drive -> Track1_Drive { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 0 && ControlUnit_drive1 == 1; sync channel_SPS1_ControlUnit!;assign update_ControlUnit_drive1 := 0, ControlUnit_IntStat := 2; },
+    Track1_Drive -> Track1_Drive { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 1 && ControlUnit_drive1 == 1; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 4; },
+    Track1_Drive -> Track1_Drive { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 2 && ControlUnit_drive1 == 1; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 4; },
+    Track1_Drive -> Track1_Ready { guard ControlUnit_IntStat == 1; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track1_Drive -> Track1_Finished { guard ControlUnit_IntStat == 2; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track1_Drive -> Track2_Finished { guard ControlUnit_IntStat == 3; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track1_Drive -> Track1_Drive { guard ControlUnit_IntStat == 4; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track1_Drive -> Track2_Drive { guard ControlUnit_IntStat == 5; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track1_Drive -> Track2_Ready { guard ControlUnit_IntStat == 6; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track2_Drive -> Track2_Drive { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC2 == 0 && ControlUnit_drive2 == 1; sync channel_SPS1_ControlUnit!;assign update_ControlUnit_drive2 := 0, ControlUnit_IntStat := 3; },
+    Track2_Drive -> Track2_Drive { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC2 == 1 && ControlUnit_drive2 == 1; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 5; },
+    Track2_Drive -> Track2_Drive { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC2 == 2 && ControlUnit_drive2 == 1; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 5; },
+    Track2_Drive -> Track1_Ready { guard ControlUnit_IntStat == 1; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track2_Drive -> Track1_Finished { guard ControlUnit_IntStat == 2; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track2_Drive -> Track2_Finished { guard ControlUnit_IntStat == 3; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track2_Drive -> Track1_Drive { guard ControlUnit_IntStat == 4; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track2_Drive -> Track2_Drive { guard ControlUnit_IntStat == 5; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track2_Drive -> Track2_Ready { guard ControlUnit_IntStat == 6; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track2_Ready -> Track2_Ready { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 0 && polled_ControlUnit_numEC2 == 0 && ControlUnit_drive2 == 0; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 6; },
+    Track2_Ready -> Track2_Ready { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 1 && polled_ControlUnit_numEC2 == 0 && ControlUnit_drive2 == 0; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 1; },
+    Track2_Ready -> Track2_Ready { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 2 && polled_ControlUnit_numEC2 == 0 && ControlUnit_drive2 == 0; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 1; },
+    Track2_Ready -> Track2_Ready { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 0 && polled_ControlUnit_numEC2 == 1 && ControlUnit_drive2 == 0; sync channel_SPS1_ControlUnit!;assign update_ControlUnit_drive2 := 1, ControlUnit_IntStat := 5; },
+    Track2_Ready -> Track2_Ready { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 1 && polled_ControlUnit_numEC2 == 1 && ControlUnit_drive2 == 0; sync channel_SPS1_ControlUnit!;assign update_ControlUnit_drive2 := 1, ControlUnit_IntStat := 5; },
+    Track2_Ready -> Track2_Ready { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 2 && polled_ControlUnit_numEC2 == 1 && ControlUnit_drive2 == 0; sync channel_SPS1_ControlUnit!;assign update_ControlUnit_drive2 := 1, ControlUnit_IntStat := 5; },
+    Track2_Ready -> Track2_Ready { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 0 && polled_ControlUnit_numEC2 == 2 && ControlUnit_drive2 == 0; sync channel_SPS1_ControlUnit!;assign update_ControlUnit_drive2 := 1, ControlUnit_IntStat := 5; },
+    Track2_Ready -> Track2_Ready { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 1 && polled_ControlUnit_numEC2 == 2 && ControlUnit_drive2 == 0; sync channel_SPS1_ControlUnit!;assign update_ControlUnit_drive2 := 1, ControlUnit_IntStat := 5; },
+    Track2_Ready -> Track2_Ready { guard ControlUnit_IntStat == 0 && polled_ControlUnit_numEC1 == 2 && polled_ControlUnit_numEC2 == 2 && ControlUnit_drive2 == 0; sync channel_SPS1_ControlUnit!;assign update_ControlUnit_drive2 := 1, ControlUnit_IntStat := 5; },
+    Track2_Ready -> Track1_Ready { guard ControlUnit_IntStat == 1; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track2_Ready -> Track1_Finished { guard ControlUnit_IntStat == 2; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track2_Ready -> Track2_Finished { guard ControlUnit_IntStat == 3; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track2_Ready -> Track1_Drive { guard ControlUnit_IntStat == 4; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track2_Ready -> Track2_Drive { guard ControlUnit_IntStat == 5; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; },
+    Track2_Ready -> Track2_Ready { guard ControlUnit_IntStat == 6; sync channel_SPS1_ControlUnit!;assign ControlUnit_IntStat := 0, ControlUnit_y0 := 0; };
+}
+
+process AKT1 {
+
+    state Idle, Demanding, Driving, Error;
+    init Idle;
+    trans 
+    Idle -> Idle { guard AKT1_IntStat == 0 && polled_AKT1_error == 0 && polled_AKT1_waitingTrains == 0 && AKT1_signal == 1; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 1; },
+    Idle -> Idle { guard AKT1_IntStat == 0 && polled_AKT1_error == 1 && polled_AKT1_waitingTrains == 0 && AKT1_signal == 1; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 4; },
+    Idle -> Idle { guard AKT1_IntStat == 0 && polled_AKT1_error == 0 && polled_AKT1_waitingTrains == 1 && AKT1_signal == 1; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 2, AKT1_IntStat := 2; },
+    Idle -> Idle { guard AKT1_IntStat == 0 && polled_AKT1_error == 1 && polled_AKT1_waitingTrains == 1 && AKT1_signal == 1; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 4; },
+    Idle -> Idle { guard AKT1_IntStat == 0 && polled_AKT1_error == 0 && polled_AKT1_waitingTrains == 2 && AKT1_signal == 1; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 2, AKT1_IntStat := 2; },
+    Idle -> Idle { guard AKT1_IntStat == 0 && polled_AKT1_error == 1 && polled_AKT1_waitingTrains == 2 && AKT1_signal == 1; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 4; },
+    Idle -> Idle { guard AKT1_IntStat == 1; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 0; },
+    Idle -> Demanding { guard AKT1_IntStat == 2; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 0; },
+    Idle -> Driving { guard AKT1_IntStat == 3; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 0; },
+    Idle -> Error { guard AKT1_IntStat == 4; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 0; },
+    Demanding -> Demanding { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 0 && polled_AKT1_error == 0 && polled_AKT1_waitingTrains == 0 && AKT1_signal == 2; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 1, AKT1_IntStat := 1; },
+    Demanding -> Demanding { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 1 && polled_AKT1_error == 0 && polled_AKT1_waitingTrains == 0 && AKT1_signal == 2; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 1, AKT1_IntStat := 1; },
+    Demanding -> Demanding { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 0 && polled_AKT1_error == 1 && polled_AKT1_waitingTrains == 0 && AKT1_signal == 2; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 1, AKT1_IntStat := 4; },
+    Demanding -> Demanding { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 1 && polled_AKT1_error == 1 && polled_AKT1_waitingTrains == 0 && AKT1_signal == 2; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 1, AKT1_IntStat := 4; },
+    Demanding -> Demanding { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 0 && polled_AKT1_error == 0 && polled_AKT1_waitingTrains == 1 && AKT1_signal == 2; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 2; },
+    Demanding -> Demanding { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 1 && polled_AKT1_error == 0 && polled_AKT1_waitingTrains == 1 && AKT1_signal == 2; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 0, AKT1_IntStat := 3; },
+    Demanding -> Demanding { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 0 && polled_AKT1_error == 1 && polled_AKT1_waitingTrains == 1 && AKT1_signal == 2; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 1, AKT1_IntStat := 4; },
+    Demanding -> Demanding { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 1 && polled_AKT1_error == 1 && polled_AKT1_waitingTrains == 1 && AKT1_signal == 2; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 1, AKT1_IntStat := 4; },
+    Demanding -> Demanding { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 0 && polled_AKT1_error == 0 && polled_AKT1_waitingTrains == 2 && AKT1_signal == 2; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 2; },
+    Demanding -> Demanding { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 1 && polled_AKT1_error == 0 && polled_AKT1_waitingTrains == 2 && AKT1_signal == 2; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 0, AKT1_IntStat := 3; },
+    Demanding -> Demanding { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 0 && polled_AKT1_error == 1 && polled_AKT1_waitingTrains == 2 && AKT1_signal == 2; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 1, AKT1_IntStat := 4; },
+    Demanding -> Demanding { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 1 && polled_AKT1_error == 1 && polled_AKT1_waitingTrains == 2 && AKT1_signal == 2; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 1, AKT1_IntStat := 4; },
+    Demanding -> Idle { guard AKT1_IntStat == 1; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 0; },
+    Demanding -> Demanding { guard AKT1_IntStat == 2; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 0; },
+    Demanding -> Driving { guard AKT1_IntStat == 3; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 0; },
+    Demanding -> Error { guard AKT1_IntStat == 4; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 0; },
+    Driving -> Driving { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 0 && polled_AKT1_error == 0 && polled_AKT1_waitingTrains == 0 && AKT1_signal == 0; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 1, AKT1_IntStat := 1; },
+    Driving -> Driving { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 1 && polled_AKT1_error == 0 && polled_AKT1_waitingTrains == 0 && AKT1_signal == 0; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 1, AKT1_IntStat := 1; },
+    Driving -> Driving { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 0 && polled_AKT1_error == 1 && polled_AKT1_waitingTrains == 0 && AKT1_signal == 0; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 1, AKT1_IntStat := 4; },
+    Driving -> Driving { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 1 && polled_AKT1_error == 1 && polled_AKT1_waitingTrains == 0 && AKT1_signal == 0; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 1, AKT1_IntStat := 4; },
+    Driving -> Driving { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 0 && polled_AKT1_error == 0 && polled_AKT1_waitingTrains == 1 && AKT1_signal == 0; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 2, AKT1_IntStat := 2; },
+    Driving -> Driving { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 1 && polled_AKT1_error == 0 && polled_AKT1_waitingTrains == 1 && AKT1_signal == 0; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 3; },
+    Driving -> Driving { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 0 && polled_AKT1_error == 1 && polled_AKT1_waitingTrains == 1 && AKT1_signal == 0; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 1, AKT1_IntStat := 4; },
+    Driving -> Driving { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 1 && polled_AKT1_error == 1 && polled_AKT1_waitingTrains == 1 && AKT1_signal == 0; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 1, AKT1_IntStat := 4; },
+    Driving -> Driving { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 0 && polled_AKT1_error == 0 && polled_AKT1_waitingTrains == 2 && AKT1_signal == 0; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 2, AKT1_IntStat := 2; },
+    Driving -> Driving { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 1 && polled_AKT1_error == 0 && polled_AKT1_waitingTrains == 2 && AKT1_signal == 0; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 3; },
+    Driving -> Driving { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 0 && polled_AKT1_error == 1 && polled_AKT1_waitingTrains == 2 && AKT1_signal == 0; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 1, AKT1_IntStat := 4; },
+    Driving -> Driving { guard AKT1_IntStat == 0 && update_ControlUnit_drive1 == 1 && polled_AKT1_error == 1 && polled_AKT1_waitingTrains == 2 && AKT1_signal == 0; sync channel_SPS1_AKT1!;assign update_AKT1_signal := 1, AKT1_IntStat := 4; },
+    Driving -> Idle { guard AKT1_IntStat == 1; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 0; },
+    Driving -> Demanding { guard AKT1_IntStat == 2; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 0; },
+    Driving -> Driving { guard AKT1_IntStat == 3; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 0; },
+    Driving -> Error { guard AKT1_IntStat == 4; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 0; },
+    Error -> Error { guard AKT1_IntStat == 0; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 4; },
+    Error -> Idle { guard AKT1_IntStat == 1; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 0; },
+    Error -> Demanding { guard AKT1_IntStat == 2; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 0; },
+    Error -> Driving { guard AKT1_IntStat == 3; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 0; },
+    Error -> Error { guard AKT1_IntStat == 4; sync channel_SPS1_AKT1!;assign AKT1_IntStat := 0; };
+}
+
+process AKT2 {
+
+    state Idle, Demanding, Driving, Error;
+    init Idle;
+    trans 
+    Idle -> Idle { guard AKT2_IntStat == 0 && polled_AKT2_error == 0 && polled_AKT2_waitingTrains == 0 && AKT2_signal == 1; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 1; },
+    Idle -> Idle { guard AKT2_IntStat == 0 && polled_AKT2_error == 1 && polled_AKT2_waitingTrains == 0 && AKT2_signal == 1; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 4; },
+    Idle -> Idle { guard AKT2_IntStat == 0 && polled_AKT2_error == 0 && polled_AKT2_waitingTrains == 1 && AKT2_signal == 1; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 2, AKT2_IntStat := 2; },
+    Idle -> Idle { guard AKT2_IntStat == 0 && polled_AKT2_error == 1 && polled_AKT2_waitingTrains == 1 && AKT2_signal == 1; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 4; },
+    Idle -> Idle { guard AKT2_IntStat == 0 && polled_AKT2_error == 0 && polled_AKT2_waitingTrains == 2 && AKT2_signal == 1; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 2, AKT2_IntStat := 2; },
+    Idle -> Idle { guard AKT2_IntStat == 0 && polled_AKT2_error == 1 && polled_AKT2_waitingTrains == 2 && AKT2_signal == 1; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 4; },
+    Idle -> Idle { guard AKT2_IntStat == 1; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 0; },
+    Idle -> Demanding { guard AKT2_IntStat == 2; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 0; },
+    Idle -> Driving { guard AKT2_IntStat == 3; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 0; },
+    Idle -> Error { guard AKT2_IntStat == 4; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 0; },
+    Demanding -> Demanding { guard AKT2_IntStat == 0 && polled_AKT2_permission == 0 && polled_AKT2_error == 0 && polled_AKT2_waitingTrains == 0 && AKT2_signal == 2; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 1, AKT2_IntStat := 1; },
+    Demanding -> Demanding { guard AKT2_IntStat == 0 && polled_AKT2_permission == 1 && polled_AKT2_error == 0 && polled_AKT2_waitingTrains == 0 && AKT2_signal == 2; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 1, AKT2_IntStat := 1; },
+    Demanding -> Demanding { guard AKT2_IntStat == 0 && polled_AKT2_permission == 0 && polled_AKT2_error == 1 && polled_AKT2_waitingTrains == 0 && AKT2_signal == 2; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 1, AKT2_IntStat := 4; },
+    Demanding -> Demanding { guard AKT2_IntStat == 0 && polled_AKT2_permission == 1 && polled_AKT2_error == 1 && polled_AKT2_waitingTrains == 0 && AKT2_signal == 2; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 1, AKT2_IntStat := 4; },
+    Demanding -> Demanding { guard AKT2_IntStat == 0 && polled_AKT2_permission == 0 && polled_AKT2_error == 0 && polled_AKT2_waitingTrains == 1 && AKT2_signal == 2; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 2; },
+    Demanding -> Demanding { guard AKT2_IntStat == 0 && polled_AKT2_permission == 1 && polled_AKT2_error == 0 && polled_AKT2_waitingTrains == 1 && AKT2_signal == 2; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 0, AKT2_IntStat := 3; },
+    Demanding -> Demanding { guard AKT2_IntStat == 0 && polled_AKT2_permission == 0 && polled_AKT2_error == 1 && polled_AKT2_waitingTrains == 1 && AKT2_signal == 2; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 1, AKT2_IntStat := 4; },
+    Demanding -> Demanding { guard AKT2_IntStat == 0 && polled_AKT2_permission == 1 && polled_AKT2_error == 1 && polled_AKT2_waitingTrains == 1 && AKT2_signal == 2; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 1, AKT2_IntStat := 4; },
+    Demanding -> Demanding { guard AKT2_IntStat == 0 && polled_AKT2_permission == 0 && polled_AKT2_error == 0 && polled_AKT2_waitingTrains == 2 && AKT2_signal == 2; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 2; },
+    Demanding -> Demanding { guard AKT2_IntStat == 0 && polled_AKT2_permission == 1 && polled_AKT2_error == 0 && polled_AKT2_waitingTrains == 2 && AKT2_signal == 2; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 0, AKT2_IntStat := 3; },
+    Demanding -> Demanding { guard AKT2_IntStat == 0 && polled_AKT2_permission == 0 && polled_AKT2_error == 1 && polled_AKT2_waitingTrains == 2 && AKT2_signal == 2; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 1, AKT2_IntStat := 4; },
+    Demanding -> Demanding { guard AKT2_IntStat == 0 && polled_AKT2_permission == 1 && polled_AKT2_error == 1 && polled_AKT2_waitingTrains == 2 && AKT2_signal == 2; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 1, AKT2_IntStat := 4; },
+    Demanding -> Idle { guard AKT2_IntStat == 1; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 0; },
+    Demanding -> Demanding { guard AKT2_IntStat == 2; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 0; },
+    Demanding -> Driving { guard AKT2_IntStat == 3; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 0; },
+    Demanding -> Error { guard AKT2_IntStat == 4; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 0; },
+    Driving -> Driving { guard AKT2_IntStat == 0 && polled_AKT2_permission == 0 && polled_AKT2_error == 0 && polled_AKT2_waitingTrains == 0 && AKT2_signal == 0; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 1, AKT2_IntStat := 1; },
+    Driving -> Driving { guard AKT2_IntStat == 0 && polled_AKT2_permission == 1 && polled_AKT2_error == 0 && polled_AKT2_waitingTrains == 0 && AKT2_signal == 0; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 1, AKT2_IntStat := 1; },
+    Driving -> Driving { guard AKT2_IntStat == 0 && polled_AKT2_permission == 0 && polled_AKT2_error == 1 && polled_AKT2_waitingTrains == 0 && AKT2_signal == 0; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 1, AKT2_IntStat := 4; },
+    Driving -> Driving { guard AKT2_IntStat == 0 && polled_AKT2_permission == 1 && polled_AKT2_error == 1 && polled_AKT2_waitingTrains == 0 && AKT2_signal == 0; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 1, AKT2_IntStat := 4; },
+    Driving -> Driving { guard AKT2_IntStat == 0 && polled_AKT2_permission == 0 && polled_AKT2_error == 0 && polled_AKT2_waitingTrains == 1 && AKT2_signal == 0; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 2, AKT2_IntStat := 2; },
+    Driving -> Driving { guard AKT2_IntStat == 0 && polled_AKT2_permission == 1 && polled_AKT2_error == 0 && polled_AKT2_waitingTrains == 1 && AKT2_signal == 0; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 3; },
+    Driving -> Driving { guard AKT2_IntStat == 0 && polled_AKT2_permission == 0 && polled_AKT2_error == 1 && polled_AKT2_waitingTrains == 1 && AKT2_signal == 0; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 1, AKT2_IntStat := 4; },
+    Driving -> Driving { guard AKT2_IntStat == 0 && polled_AKT2_permission == 1 && polled_AKT2_error == 1 && polled_AKT2_waitingTrains == 1 && AKT2_signal == 0; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 1, AKT2_IntStat := 4; },
+    Driving -> Driving { guard AKT2_IntStat == 0 && polled_AKT2_permission == 0 && polled_AKT2_error == 0 && polled_AKT2_waitingTrains == 2 && AKT2_signal == 0; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 2, AKT2_IntStat := 2; },
+    Driving -> Driving { guard AKT2_IntStat == 0 && polled_AKT2_permission == 1 && polled_AKT2_error == 0 && polled_AKT2_waitingTrains == 2 && AKT2_signal == 0; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 3; },
+    Driving -> Driving { guard AKT2_IntStat == 0 && polled_AKT2_permission == 0 && polled_AKT2_error == 1 && polled_AKT2_waitingTrains == 2 && AKT2_signal == 0; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 1, AKT2_IntStat := 4; },
+    Driving -> Driving { guard AKT2_IntStat == 0 && polled_AKT2_permission == 1 && polled_AKT2_error == 1 && polled_AKT2_waitingTrains == 2 && AKT2_signal == 0; sync channel_SPS2_AKT2!;assign update_AKT2_signal := 1, AKT2_IntStat := 4; },
+    Driving -> Idle { guard AKT2_IntStat == 1; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 0; },
+    Driving -> Demanding { guard AKT2_IntStat == 2; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 0; },
+    Driving -> Driving { guard AKT2_IntStat == 3; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 0; },
+    Driving -> Error { guard AKT2_IntStat == 4; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 0; },
+    Error -> Error { guard AKT2_IntStat == 0; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 4; },
+    Error -> Idle { guard AKT2_IntStat == 1; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 0; },
+    Error -> Demanding { guard AKT2_IntStat == 2; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 0; },
+    Error -> Driving { guard AKT2_IntStat == 3; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 0; },
+    Error -> Error { guard AKT2_IntStat == 4; sync channel_SPS2_AKT2!;assign AKT2_IntStat := 0; };
+}
+
+process PLC_SPS1 {
+
+    state starting{SPS1_z <= 0}, polling{SPS1_z <= 10}, testing{SPS1_z <= 10}, updating{SPS1_z <= 10}, executing_ControlUnit{SPS1_z <= 10}, resetting_ControlUnit{SPS1_z <= 0}, executing_AKT1{SPS1_z <= 10}, resetting_AKT1{SPS1_z <= 0};
+    commit executing_ControlUnit, resetting_ControlUnit, executing_AKT1, resetting_AKT1;
+    init starting;
+    trans 
+    starting -> polling { assign update_AKT1_signal := 1, update_ControlUnit_drive2 := 0, update_ControlUnit_drive1 := 0, AKT1_signal := 1, ControlUnit_drive2 := 0, ControlUnit_drive1 := 0, ControlUnit_IntStat := 0, AKT1_IntStat := 0; },
+    polling -> testing { guard SPS1_z > 0; assign polled_ControlUnit_numEC1 := EC1_number, polled_ControlUnit_numEC2 := EC2_number, polled_ControlUnit_numCL2 := CL2_number, polled_ControlUnit_numCL1 := CL1_number, polled_AKT1_error := ErrorDetection_error, polled_AKT1_waitingTrains := EC1_number; },
+    testing -> executing_ControlUnit {  },
+    executing_ControlUnit -> executing_AKT1 { sync channel_SPS1_ControlUnit?; },
+    executing_AKT1 -> updating { sync channel_SPS1_AKT1?; },
+    updating -> resetting_ControlUnit { assign ControlUnit_drive1 := update_ControlUnit_drive1, ControlUnit_drive2 := update_ControlUnit_drive2, AKT1_signal := update_AKT1_signal, SPS1_z := 0; },
+    resetting_ControlUnit -> resetting_AKT1 { sync channel_SPS1_ControlUnit?; },
+    resetting_AKT1 -> polling { sync channel_SPS1_AKT1?; };
+}
+
+process PLC_SPS2 {
+
+    state starting{SPS2_z <= 0}, polling{SPS2_z <= 10}, testing{SPS2_z <= 10}, updating{SPS2_z <= 10}, executing_AKT2{SPS2_z <= 10}, resetting_AKT2{SPS2_z <= 0};
+    commit executing_AKT2, resetting_AKT2;
+    init starting;
+    trans 
+    starting -> polling { assign update_AKT2_signal := 1, AKT2_signal := 1, AKT2_IntStat := 0; },
+    polling -> testing { guard SPS2_z > 0; assign polled_AKT2_permission := ControlUnit_drive2, polled_AKT2_error := ErrorDetection_error, polled_AKT2_waitingTrains := EC2_number; },
+    testing -> executing_AKT2 {  },
+    executing_AKT2 -> updating { sync channel_SPS2_AKT2?; },
+    updating -> resetting_AKT2 { assign AKT2_signal := update_AKT2_signal, SPS2_z := 0; },
+    resetting_AKT2 -> polling { sync channel_SPS2_AKT2?; };
+}
+
+process drive_EC1_number {
+
+    state loop;
+    init loop;
+    trans 
+    loop -> loop { guard EC1_number == 1; assign EC1_number := 0; },
+    loop -> loop { guard EC1_number == 2; assign EC1_number := 0; },
+    loop -> loop { guard EC1_number == 0; assign EC1_number := 1; },
+    loop -> loop { guard EC1_number == 2; assign EC1_number := 1; },
+    loop -> loop { guard EC1_number == 0; assign EC1_number := 2; },
+    loop -> loop { guard EC1_number == 1; assign EC1_number := 2; };
+}
+
+process drive_EC2_number {
+
+    state loop;
+    init loop;
+    trans 
+    loop -> loop { guard EC2_number == 1; assign EC2_number := 0; },
+    loop -> loop { guard EC2_number == 2; assign EC2_number := 0; },
+    loop -> loop { guard EC2_number == 0; assign EC2_number := 1; },
+    loop -> loop { guard EC2_number == 2; assign EC2_number := 1; },
+    loop -> loop { guard EC2_number == 0; assign EC2_number := 2; },
+    loop -> loop { guard EC2_number == 1; assign EC2_number := 2; };
+}
+
+process drive_CL2_number {
+
+    state loop;
+    init loop;
+    trans 
+    loop -> loop { guard CL2_number == 1; assign CL2_number := 0; },
+    loop -> loop { guard CL2_number == 2; assign CL2_number := 0; },
+    loop -> loop { guard CL2_number == 0; assign CL2_number := 1; },
+    loop -> loop { guard CL2_number == 2; assign CL2_number := 1; },
+    loop -> loop { guard CL2_number == 0; assign CL2_number := 2; },
+    loop -> loop { guard CL2_number == 1; assign CL2_number := 2; };
+}
+
+process drive_CL1_number {
+
+    state loop;
+    init loop;
+    trans 
+    loop -> loop { guard CL1_number == 1; assign CL1_number := 0; },
+    loop -> loop { guard CL1_number == 2; assign CL1_number := 0; },
+    loop -> loop { guard CL1_number == 0; assign CL1_number := 1; },
+    loop -> loop { guard CL1_number == 2; assign CL1_number := 1; },
+    loop -> loop { guard CL1_number == 0; assign CL1_number := 2; },
+    loop -> loop { guard CL1_number == 1; assign CL1_number := 2; };
+}
+
+process drive_ErrorDetection_error {
+
+    state loop;
+    init loop;
+    trans 
+    loop -> loop { guard ErrorDetection_error == 1; assign ErrorDetection_error := 0; },
+    loop -> loop { guard ErrorDetection_error == 0; assign ErrorDetection_error := 1; };
+}
+
+system ControlUnit, AKT1, AKT2, PLC_SPS1, PLC_SPS2, drive_EC1_number, drive_EC2_number, drive_CL2_number, drive_CL1_number, drive_ErrorDetection_error;
+

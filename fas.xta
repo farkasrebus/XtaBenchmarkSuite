@@ -1,0 +1,286 @@
+//********* Time unit is tics **********
+
+// Global constants
+const int NumChannels = 4; // How many channels are used by the system
+const int NumControllers = 1; // Number of controllers present (center + repeaters)
+//>>(126S_CB)(126S_CB_SW)
+const int NumSensors = 126;
+//<<
+//>>(2S_CB)(2S_CB_SW)
+//const int NumSensors = 2;
+//<<
+
+const int NumMessages = 5; // How many different message types are there
+// Cycle length in tics
+const int CycleLength = 9576-126; 
+// Length in tics of a second
+const int Second = 64;    
+// Maximum nuber of sensors per system
+const int MaxSensors = 126;
+// Maximum number of allowed missed LZs before signaling a malfunction
+const int MaxMissedLZ = 2;
+
+// Type definitions
+typedef int[0, NumChannels-1] channelID;
+typedef int[0, NumSensors-1] sensorID;
+typedef int[0, NumMessages-1] messageID;
+typedef int[0, MaxSensors-1] windowID;
+
+// Message delays
+const int ACKdelay = 8;
+const int LZdelay = 8;
+
+// Window Arrangement
+const int WindowLength = CycleLength / MaxSensors; //Window Size;
+const int SlotLength = WindowLength / 3;
+const int SendOffset = 4;
+
+// Numeric identifiers for messages
+const int LZ = 0;
+const int ACK = 1;
+const int RepLZ = 2;
+const int RepACK = 3;
+const int sensorFail = 4;
+
+// Channels simulating radio communication(differentiated by message type and direction)
+chan TX[NumMessages][NumChannels];
+broadcast chan RX[NumMessages][NumChannels];
+
+// Other channels
+chan LZReceived[NumControllers]; // Signals the reception of an LZ (SPI Bus)
+broadcast chan errorDetected; // Signals when a sensor shutdown has been detected (for monitoring purposes)
+
+// Clock synchronization channels
+broadcast chan cycleReset; 
+broadcast chan slotTimerReset;
+broadcast chan windowTimerReset;
+
+// Global variables
+int[-1, NumChannels-1] gBlockedChannel = -1; // ID of the currently blocked channel
+int[-1, NumSensors-1] gOffSensor = -1; // ID of the sensor currently turned off
+channelID   channelLZ = 0, 
+            channelALARM = 3, 
+            channelCALL = 1, 
+            channelREPLZ = 2;
+int[0,MaxMissedLZ] missedLZ[NumSensors]; // global counter for missedLZs
+channelID   TR1Channel;
+windowID gCurrentWindow = 0;
+sensorID gSensorID;
+
+// Global clocks
+clock absTime;
+clock slotTimer;
+clock windowTimer;
+
+process fault() {
+clock timer;
+state
+    DETECTION,
+    SHUTDOWN,
+    S0;
+urgent
+    DETECTION;
+init S0;
+trans
+    DETECTION -> SHUTDOWN { assign timer:=0;  },
+    SHUTDOWN -> DETECTION { sync errorDetected?;  },
+    S0 -> SHUTDOWN { select sensor: sensorID; assign gOffSensor := sensor,
+timer:=0;  };
+}
+
+process slotClock() {
+/*
+Shared slot timer, broadcasts the slottimerReset! event and sets the appropriate channels for the transceivers.
+*/
+state
+    S0,
+    S1 {slotTimer<=SlotLength},
+    S2 {slotTimer<=SlotLength},
+    S3 {slotTimer<=SlotLength};
+urgent
+    S0;
+init S3;
+trans
+    S1 -> S0 { sync cycleReset?; assign TR1Channel:=channelLZ;  },
+    S0 -> S3 { sync slotTimerReset!; assign slotTimer:=0;  },
+    S1 -> S3 { guard slotTimer>=SlotLength && absTime < CycleLength; sync slotTimerReset!; assign slotTimer:=0,
+TR1Channel:=channelLZ;  },
+    S2 -> S1 { guard slotTimer>=SlotLength; sync slotTimerReset!; assign slotTimer := 0,
+TR1Channel := channelCALL;  },
+    S3 -> S2 { guard slotTimer >= SlotLength; sync slotTimerReset!; assign slotTimer := 0,
+TR1Channel := channelALARM;  };
+}
+
+process windowClock() {
+/*
+Shared window timer, broadcasts the windowTimerReset! event and keeps track of the window
+*/
+state
+    S0,
+    S1 {windowTimer<=WindowLength};
+urgent
+    S0;
+init S1;
+trans
+    S0 -> S1 { assign gCurrentWindow:=(gCurrentWindow+1)%MaxSensors;  },
+    S1 -> S0 { guard windowTimer>=WindowLength; sync windowTimerReset!; assign windowTimer:=0;  };
+}
+
+process sensor(const sensorID id) {
+const int LZStart = id * WindowLength + SendOffset;
+const int Slot1End = id * WindowLength + SlotLength;
+const int LZ2Start = LZStart + SlotLength;
+const int Slot2End = Slot1End + SlotLength;
+const int LZ3Start = LZ2Start + SlotLength;
+const int WindowEnd = (id+1) * WindowLength;
+state
+    slot_end {absTime <= WindowEnd},
+    third_try {absTime <= LZ3Start + LZdelay},
+    S0 {absTime <= Slot2End},
+    second_try {absTime <= LZ2Start + LZdelay},
+    window_end {absTime <= CycleLength},
+    S1 {absTime<=Slot1End},
+    first_try {absTime <= LZStart + LZdelay},
+    idle {absTime <= LZStart};
+init idle;
+trans
+    slot_end -> idle { sync cycleReset?;  },
+    window_end -> idle { sync cycleReset?;  },
+    slot_end -> window_end { guard absTime >= WindowEnd;  },
+    slot_end -> window_end { sync RX[ACK][channelCALL]?;  },
+    third_try -> slot_end { guard absTime >= LZ3Start; sync TX[LZ][channelCALL]!; assign gSensorID := id;  },
+    S0 -> third_try { guard absTime >= Slot2End;  },
+    S0 -> window_end { sync RX[ACK][channelALARM]?;  },
+    second_try -> S0 { guard absTime >= LZ2Start; sync TX[LZ][channelALARM]!; assign gSensorID := id;  },
+    S1 -> second_try { guard absTime>=Slot1End;  },
+    S1 -> window_end { sync RX[ACK][channelLZ]?;  },
+    first_try -> S1 { sync TX[LZ][channelLZ]!; assign gSensorID := id;  },
+    idle -> first_try { guard absTime >= LZStart;  };
+}
+
+process medium(const channelID currentCh) {
+meta messageID currentMsg;
+state
+    transmit,
+    idle;
+urgent
+    transmit;
+init idle;
+trans
+    transmit -> idle { guard gBlockedChannel == currentCh || gOffSensor == gSensorID;  },
+    transmit -> idle { guard gBlockedChannel != currentCh && gOffSensor != gSensorID; sync RX[currentMsg][currentCh]!;  },
+    idle -> transmit { select msg:messageID; sync TX[msg][currentCh]?; assign currentMsg:=msg;  };
+}
+
+process masterClock() {
+/* 
+Master clock, controls the absTime clock, resets at the end of each cycle and sets the corresponding channels.
+Special attention should be paid to the interleavings around the absTimeReset! event to avoid confusing channels.
+*/
+state
+    c3 {absTime<=CycleLength},
+    c1 {absTime<=CycleLength},
+    c2 {absTime<=CycleLength},
+    c0 {absTime<=CycleLength};
+init c0;
+trans
+    c3 -> c0 { guard absTime>=CycleLength; sync cycleReset!; assign absTime:=0, channelLZ:=0,channelCALL:=1,channelREPLZ:=2,channelALARM:=3;  },
+    c2 -> c3 { guard absTime>=CycleLength; sync cycleReset!; assign absTime:=0, channelLZ:=3,channelCALL:=0,channelREPLZ:=1,channelALARM:=2;  },
+    c1 -> c2 { guard absTime>=CycleLength; sync cycleReset!; assign absTime:=0, channelLZ:=2,channelCALL:=3,channelREPLZ:=0,channelALARM:=1;  },
+    c0 -> c1 { guard absTime>=CycleLength; sync cycleReset!; assign absTime:=0, channelLZ:=1,channelCALL:=2,channelREPLZ:=3,channelALARM:=0;  };
+}
+
+process TR1(const int controllerID) {
+meta channelID channel = 0;
+clock counter;
+state
+    S0 {counter <= ACKdelay},
+    S1,
+    S2;
+urgent
+    S1;
+init S2;
+trans
+    S0 -> S2 { sync TX[ACK][channel]!;  },
+    S1 -> S0 { sync LZReceived[controllerID]!; assign missedLZ[gSensorID] := 0;  },
+    S2 -> S1 { sync RX[LZ][TR1Channel]?; assign counter := 0,
+channel := TR1Channel;  };
+}
+
+process controller(const int controllerID) {
+meta windowID window;
+state
+    ERROR,
+    S0,
+    S1,
+    S2;
+urgent
+    ERROR,
+    S0;
+init S2;
+trans
+    ERROR -> S2 { assign missedLZ[window] := 0;  },
+    S0 -> ERROR { guard missedLZ[window]>=MaxMissedLZ; sync errorDetected!;  },
+    S1 -> S1 { sync LZReceived[controllerID]?;  },
+    S0 -> S2 { guard missedLZ[window]<MaxMissedLZ;  },
+    S2 -> S0 { guard gCurrentWindow < NumSensors; sync windowTimerReset?; assign missedLZ[gCurrentWindow]++,
+window:=gCurrentWindow;  },
+    S1 -> S2 { sync windowTimerReset?;  },
+    S2 -> S1 { sync LZReceived[controllerID]?;  };
+}
+
+process channelBlocker() {
+/* 
+Model of the channel blocker.
+Requirements:
+- At most 1s inactivity
+- At least 1s blocking time an any one channel before deactivating or switching
+- Is not initialized simultaneously with the system
+*/
+clock x; // Internal counter
+
+state
+    BLOCKED,
+    INIT_BLOCKED,
+    FREE {x <= Second},
+    S0;
+urgent
+    S0;
+init S0;
+trans
+    INIT_BLOCKED -> FREE { assign gBlockedChannel := -1,
+x := 0;  },
+    BLOCKED -> BLOCKED { select ch: channelID; guard x >= Second; assign gBlockedChannel := ch,
+x := 0;  },
+    BLOCKED -> FREE { guard x >= Second; assign gBlockedChannel := -1,
+x := 0;  },
+    FREE -> BLOCKED { select ch: channelID; assign gBlockedChannel := ch,
+x:=0;  },
+    INIT_BLOCKED -> BLOCKED { select ch:channelID; assign gBlockedChannel := ch,
+x := 0;  },
+    S0 -> INIT_BLOCKED { select ch : channelID; assign gBlockedChannel := ch;  },
+    S0 -> FREE { assign gBlockedChannel := -1,
+x:=0;  };
+}
+// template instantiations
+
+master = masterClock();
+window = windowClock();
+slot = slotClock();
+blocker = channelBlocker();
+switcher = fault();
+
+center = controller(0);
+centerTR1 = TR1(0);
+
+// System declaration
+
+system  master, window, slot, 
+//>>(2S_CB)(2S_CB_SW)(126S_CB_SW)(126S_CB)
+blocker,
+//<<
+//>>(2S_CB_SW)(126S_CB_SW)
+switcher,
+//<<
+sensor, medium,
+center, centerTR1;

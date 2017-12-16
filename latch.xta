@@ -1,0 +1,144 @@
+const int dHold = 350;
+const int dNot2Up = 155;
+const int dNot1Up = 155;
+const int dNot1Down = 147;
+const int dXorDown1Up = 416;
+const int dClockHigh = 1000;
+const int dAndDown1 = 155;
+const int dClockLow = 1000;
+const int dAndUp2 = 80;
+const int dNot2Down = 147;
+const int dXorUp2Up = 147;
+const int dSetup = 1;
+const int dLatchUp = 240;
+
+int q;
+
+chan not2Up1;
+chan clockUp1;
+chan dUp1;
+chan dDown1;
+chan not1Down1;
+chan andUp1;
+chan andDown1;
+chan xorDown1;
+
+process clock1() {
+	clock ckClock;
+
+	state
+		ClockLow1 { ckClock <= dClockLow },
+		ClockHigh1 { ckClock <= dClockHigh };
+
+	init ClockLow1;
+
+	trans
+		ClockLow1 -> ClockHigh1 { guard ckClock >= dClockLow; sync clockUp1!; assign ckClock = 0; };
+}
+process d1() {
+	clock ckD;
+
+	state
+		DLow1 { ckD <= dClockLow + dSetup },
+		DHigh1 { ckD <= dSetup },
+		DHigh2 { ckD <= dHold },
+		DLow2 { ckD >= 0 };
+
+	init DLow1;
+
+	trans
+		DHigh1 -> DHigh2 { guard ckD == dSetup; sync clockUp1?; assign ckD = 0; },
+		DHigh2 -> DLow2 { guard ckD == dHold; sync dDown1!; },
+		DLow1 -> DHigh1 { guard ckD == dSetup + dClockLow; sync dUp1!; assign ckD = 0; };
+}
+process not1() {
+	clock ckNot1;
+
+	state
+		Not1High1 { ckNot1 >= 0 },
+		Not1High1bis { ckNot1 <= dNot1Down },
+		Not1Low1 { ckNot1 >= 0 };
+
+	init Not1High1;
+
+	trans
+		Not1High1 -> Not1High1bis { sync clockUp1?; assign ckNot1 = 0; },
+		Not1High1bis -> Not1Low1 { guard ckNot1 >= dNot1Down; sync not1Down1!; };
+}
+process not2() {
+	clock ckNot2;
+
+	state
+		Not2Low1 { ckNot2 >= 0 },
+		Not2Low1bis { ckNot2 <= dNot2Up },
+		Not2High1 { ckNot2 >= 0 };
+
+	init Not2Low1;
+
+	trans
+		Not2Low1bis -> Not2High1 { guard ckNot2 >= dNot2Up; sync not2Up1!; },
+		Not2Low1 -> Not2Low1bis { sync not1Down1?; assign ckNot2 = 0; };
+}
+process xor1() {
+	clock ckXor;
+
+	state
+		XorLow1 { ckXor >= 0 },
+		XorLow1bis { ckXor <= dXorUp2Up },
+		XorHigh1 { ckXor >= 0 },
+		XorHigh1bis { ckXor <= dXorDown1Up },
+		XorLow2 { ckXor >= 0 };
+
+	init XorLow1;
+
+	trans
+		XorHigh1 -> XorHigh1bis { sync not2Up1?; assign ckXor = 0; },
+		XorLow1bis -> XorHigh1 { guard ckXor >= dXorUp2Up; },
+		XorHigh1bis -> XorLow2 { guard ckXor >= dXorDown1Up; sync xorDown1!; },
+		XorLow1 -> XorLow1bis { sync clockUp1?; assign ckXor = 0; };
+}
+process and1() {
+	clock ckAnd;
+
+	state
+		AndLow1 { ckAnd >= 0 },
+		AndLow1bis { ckAnd <= dAndUp2 },
+		AndHigh1 { ckAnd >= 0 },
+		AndHigh1bis { ckAnd <= dAndDown1 },
+		AndLow2 { ckAnd >= 0 };
+
+	init AndLow1;
+
+	trans
+		AndLow1 -> AndLow1bis { sync clockUp1?; assign ckAnd = 0; },
+		AndLow1bis -> AndHigh1 { guard ckAnd >= dAndUp2; sync andUp1!; },
+		AndHigh1bis -> AndLow2 { guard ckAnd >= dAndDown1; sync andDown1!; },
+		AndHigh1 -> AndHigh1bis { sync xorDown1?; assign ckAnd = 0; };
+}
+process latch1() {
+	clock ckLatch;
+
+	state
+		LatchD0E0 { ckLatch >= 0 },
+		LatchD0E1 { ckLatch >= 0 },
+		LatchD1E0 { ckLatch >= 0 },
+		LatchD1E1 { ckLatch <= dLatchUp },
+		LatchD1E1B { ckLatch >= 0 };
+
+	init LatchD0E0;
+
+	trans
+		LatchD0E1 -> LatchD1E1 { sync dUp1?; assign ckLatch = 0; },
+		LatchD0E0 -> LatchD0E1 { sync andUp1?; assign ckLatch = 0; },
+		LatchD1E0 -> LatchD0E0 { sync dDown1?; },
+		LatchD1E1 -> LatchD0E1 { sync dDown1?; },
+		LatchD1E1B -> LatchD1E0 { sync andDown1?; },
+		LatchD1E1B -> LatchD0E1 { sync dDown1?; },
+		LatchD0E1 -> LatchD0E0 { sync andDown1?; },
+		LatchD1E1 -> LatchD1E0 { sync andDown1?; },
+		LatchD0E0 -> LatchD1E0 { sync dUp1?; },
+		LatchD1E0 -> LatchD1E1 { sync andUp1?; assign ckLatch = 0; },
+		LatchD1E1 -> LatchD1E1B { guard ckLatch >= dLatchUp; assign q = 1; };
+}
+
+system clock1, d1, not1, not2, xor1, and1, latch1;
