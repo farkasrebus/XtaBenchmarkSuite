@@ -62,13 +62,13 @@ process controller() {
 
 	trans
 		controller0 -> controller1 { sync approach!; assign z = 0, cnt = 1; },
-    controller1 -> controller1 { sync approach!; assign cnt = cnt + 1;},
-    controller1 -> controller1 { sync exit!; assign cnt = cnt - 1;},
-    controller2 -> controller2 { sync approach!; assign cnt = cnt + 1; },
-    controller2 -> controller2 { guard cnt > 1; sync exit!; assign cnt = cnt - 1; },
+    controller1 -> controller1 { guard cnt >= 0; sync approach!; assign cnt = cnt + 1;},
+    controller1 -> controller1 { guard cnt <= N; sync exit!; assign cnt = cnt - 1;},
+    controller2 -> controller2 { guard cnt >= 0; sync approach!; assign cnt = cnt + 1; },
+    controller2 -> controller2 { guard cnt <= N && cnt > 1; sync exit!; assign cnt = cnt - 1; },
     controller2 -> controller3 { guard cnt == 1; sync exit!; assign z = 0, cnt = 0; },
 		controller3 -> controller0 { guard z <= e; sync raise!; },
-    controller3 -> controller2 { guard z <= e; sync approach!; assign cnt = cnt + 1; },
+    controller3 -> controller2 { guard cnt >= 0 && z <= e; sync approach!; assign cnt = cnt + 1; },
 		controller1 -> controller2 { guard z == e; sync lower!; };
 }
 

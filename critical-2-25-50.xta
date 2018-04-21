@@ -39,7 +39,7 @@ process ProdCell(const id_t i) {
 	state
 		safe,
 		testing2 { x <= A },
-		error,
+		error,                                                                         =
 		critical { x <= B },
 		requesting,
 		testing { x <= A },

@@ -28,7 +28,7 @@ process P(const Pid i) {
 		L4 -> L1 { guard v2; },
 		L6 -> L1 { guard v1 != i; },
 		L3 -> L1 { guard v1 != i; },
-	    L6 -> CS7 { guard v1 == i; },
+	  L6 -> CS7 { guard v1 == i; },
 		L5 -> L6 { assign v2 = true, c = 0; },
 		L4 -> L5 { guard !v2; assign c = 0; },
 		L3 -> L4 { guard v1 == i && c > T; },

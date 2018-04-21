@@ -15,115 +15,104 @@ const int d14 = 1;
 const int d13 = 1;
 const int d24 = 1;
 
-int m1;
-int m2;
-int m3;
-int m4;
-
+bool m1;
+bool m2;
+bool m3;
+bool m4;
 
 process job1() {
-	clock x1;
-
-	state
-		I1,
-		J1 { x1 <= d13 },
-		K1,
-		L1 { x1 <= d11 },
-		M1,
-		N1 { x1 <= d12 },
-		P1,
-		Q1 { x1 <= d14 },
-		End1;
-
-	init I1;
-
-	trans
-		K1 -> L1 { guard m1 == 0; assign x1 = 0, m1 = 1; },
-		J1 -> K1 { guard x1 == d13; assign m3 = 0; },
-		L1 -> M1 { guard x1 == d11; assign m1 = 0; },
-		M1 -> N1 { guard m2 == 0; assign x1 = 0, m2 = 1; },
-		N1 -> P1 { guard x1 == d12; assign m3 = 0; },
-		Q1 -> End1 { guard x1 == d14; assign m3 = 0; },
-		I1 -> J1 { guard m3 == 0; assign x1 = 0, m3 = 1; },
-		P1 -> Q1 { guard m4 == 0; assign x1 = 0, m4 = 1; };
+clock x1;
+state
+    I1,
+    J1 {x1 <= d13},
+    K1,
+    L1 {x1 <= d11},
+    M1,
+    N1 {x1 <= d12},
+    P1,
+    Q1 {x1 <= d14},
+    End1;
+init I1;
+trans
+    K1 -> L1 { guard m1 == 0; assign x1 = 0, m1 = 1;  },
+    J1 -> K1 { guard x1 == d13; assign m3 = 0;  },
+    L1 -> M1 { guard x1 == d11; assign m1 = 0;  },
+    M1 -> N1 { guard m2 == 0; assign x1 = 0, m2 = 1;  },
+    N1 -> P1 { guard x1 == d12; assign m3 = 0;  },
+    Q1 -> End1 { guard x1 == d14; assign m3 = 0;  },
+    I1 -> J1 { guard m3 == 0; assign x1 = 0, m3 = 1;  },
+    P1 -> Q1 { guard m4 == 0; assign x1 = 0, m4 = 1;  };
 }
+
 process job2() {
-	clock x2;
-
-	state
-		I2,
-		J2 { x2 <= d22 },
-		K2,
-		L2 { x2 <= d23 },
-		M2,
-		N2 { x2 <= d21 },
-		P2,
-		Q2 { x2 <= d24 },
-		End2;
-
-	init I2;
-
-	trans
-		N2 -> P2 { guard x2 == d21; assign m1 = 0; },
-		M2 -> N2 { guard m1 == 0; assign x2 = 0, m1 = 1; },
-		K2 -> L2 { guard m3 == 0; assign x2 = 0, m3 = 1; },
-		P2 -> Q2 { guard m4 == 0; assign x2 = 0, m4 = 1; },
-		Q2 -> End2 { guard x2 == d24; assign m4 = 0; },
-		L2 -> M2 { guard x2 == d23; assign m3 = 0; },
-		I2 -> J2 { guard m2 == 0; assign x2 = 0, m2 = 1; },
-		J2 -> K2 { guard x2 == d22; assign m2 = 0; };
+clock x2;
+state
+    I2,
+    J2 {x2 <= d22},
+    K2,
+    L2 {x2 <= d23},
+    M2,
+    N2 {x2 <= d21},
+    P2,
+    Q2 {x2 <= d24},
+    End2;
+init I2;
+trans
+    N2 -> P2 { guard x2 == d21; assign m1 = 0;  },
+    M2 -> N2 { guard m1 == 0; assign x2 = 0, m1 = 1;  },
+    K2 -> L2 { guard m3 == 0; assign x2 = 0, m3 = 1;  },
+    P2 -> Q2 { guard m4 == 0; assign x2 = 0, m4 = 1;  },
+    Q2 -> End2 { guard x2 == d24; assign m4 = 0;  },
+    L2 -> M2 { guard x2 == d23; assign m3 = 0;  },
+    I2 -> J2 { guard m2 == 0; assign x2 = 0, m2 = 1;  },
+    J2 -> K2 { guard x2 == d22; assign m2 = 0;  };
 }
+
 process job3() {
-	clock x3;
-
-	state
-		I3,
-		J3 { x3 <= d33 },
-		K3,
-		L3 { x3 <= d34 },
-		M3,
-		N3 { x3 <= d31 },
-		P3,
-		Q3 { x3 <= d32 },
-		End3;
-
-	init I3;
-
-	trans
-		J3 -> K3 { guard x3 == d33; assign m3 = 0; },
-		L3 -> M3 { guard x3 == d34; assign m4 = 0; },
-		Q3 -> End3 { guard x3 == d32; assign m2 = 0; },
-		K3 -> L3 { guard m4 == 0; assign x3 = 0, m4 = 1; },
-		N3 -> P3 { guard x3 == d31; assign m1 = 0; },
-		M3 -> N3 { guard m1 == 0; assign x3 = 0, m1 = 1; },
-		I3 -> J3 { guard m3 == 0; assign x3 = 0, m3 = 1; },
-		P3 -> Q3 { guard m2 == 0; assign x3 = 0, m2 = 1; };
+clock x3;
+state
+    I3,
+    J3 {x3 <= d33},
+    K3,
+    L3 {x3 <= d34},
+    M3,
+    N3 {x3 <= d31},
+    P3,
+    Q3 {x3 <= d32},
+    End3;
+init I3;
+trans
+    J3 -> K3 { guard x3 == d33; assign m3 = 0;  },
+    L3 -> M3 { guard x3 == d34; assign m4 = 0;  },
+    Q3 -> End3 { guard x3 == d32; assign m2 = 0;  },
+    K3 -> L3 { guard m4 == 0; assign x3 = 0, m4 = 1;  },
+    N3 -> P3 { guard x3 == d31; assign m1 = 0;  },
+    M3 -> N3 { guard m1 == 0; assign x3 = 0, m1 = 1;  },
+    I3 -> J3 { guard m3 == 0; assign x3 = 0, m3 = 1;  },
+    P3 -> Q3 { guard m2 == 0; assign x3 = 0, m2 = 1;  };
 }
+
 process job4() {
-	clock x4;
-
-	state
-		I4,
-		J4 { x4 <= d42 },
-		K4,
-		L4 { x4 <= d43 },
-		M4,
-		N4 { x4 <= d41 },
-		P4,
-		Q4 { x4 <= d44 },
-		End4;
-
-	init I4;
-
-	trans
-		M4 -> N4 { guard m3 == 0; assign x4 = 0, m3 = 1; },
-		N4 -> P4 { guard x4 == d41; assign m3 = 0; },
-		Q4 -> End4 { guard x4 == d44; assign m4 = 0; },
-		K4 -> L4 { guard m1 == 0; assign x4 = 0, m1 = 1; },
-		P4 -> Q4 { guard m4 == 0; assign x4 = 0, m4 = 1; },
-		L4 -> M4 { guard x4 == d43; assign m1 = 0; },
-		I4 -> J4 { guard m2 == 0; assign x4 = 0, m2 = 1; },
-		J4 -> K4 { guard x4 == d42; assign m2 = 0; };
+clock x4;
+state
+    I4,
+    J4 {x4 <= d42},
+    K4,
+    L4 {x4 <= d43},
+    M4,
+    N4 {x4 <= d41},
+    P4,
+    Q4 {x4 <= d44},
+    End4;
+init I4;
+trans
+    M4 -> N4 { guard m3 == 0; assign x4 = 0, m3 = 1;  },
+    N4 -> P4 { guard x4 == d41; assign m3 = 0;  },
+    Q4 -> End4 { guard x4 == d44; assign m4 = 0;  },
+    K4 -> L4 { guard m1 == 0; assign x4 = 0, m1 = 1;  },
+    P4 -> Q4 { guard m4 == 0; assign x4 = 0, m4 = 1;  },
+    L4 -> M4 { guard x4 == d43; assign m1 = 0;  },
+    I4 -> J4 { guard m2 == 0; assign x4 = 0, m2 = 1;  },
+    J4 -> K4 { guard x4 == d42; assign m2 = 0;  };
 }
-
 system job1, job2, job3, job4;
