@@ -61,6 +61,24 @@ The other models include protocols, hardware circuits and other case studies.
 | SIMOP | SYSTEM | SIMOP Networked Automation System | [And10] |
 | SRLATCH | CIRCUIT | SR-latch circuit | [And10] |
 
+## Read more
+
+This benchmark suit was introduced in _Towards Reliable Benchmarks of Timed Automata_ by Rebeka Farkas and Gábor Bergmann. The short paper explains motivations and the decisions behind this collection of models.
+
+```
+@inproceedings{farkas2018towards,
+   author     = {Farkas, Rebeka and Bergmann, G\'abor},
+   title      = {Towards Reliable Benchmarks of Timed Automata},
+   year       = {2018},
+   booktitle  = {Proceedings of the 25th PhD Mini-Symposium},
+   location   = {Budapest, Hungary},
+   publisher  = {Budapest University of Technology and Economics, Department of Measurement and Information Systems},
+   editor     = {Pataki, B\'{e}la},
+   pages      = {20--23},
+}
+```
+
+
 ## References
 
 [AHV93] R. Alur, T. A. Henzinger, and M. Y. Vardi. Parametric real-time reasoning. In STOC'93, pages 592-601. ACM, 1993.
