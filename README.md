@@ -17,6 +17,16 @@ The models originate form various sources, including benchmarks of timed automat
 
 The Xta Benchmark Suite consists of 26 problems, including 6 scaleable models (models representing protocols, where the number of participants can be increased) that can be scaled up by modifying the constant in the first line of the file.
 
+The models are categorized to the following classes:
+
+* Small models: there is only one automaton, containing only a few elements. They don't necessarily model real systems but can be used for developing and testing algorithms.
+* Protocols: the network mostly consists of similarly behaving automata. Safety properties are often described, such as mutual exclusion, collision detection, etc.
+* Circuits: hardware circuits consisting of gates, latches, etc. Properties to verify include absence of short-circuits, absence of hazards and conformance. Small models.
+* Systems: models representing complete systems. The automata in the network are diverse. The models can be rather complex with various properties to check.
+* Problems: models created in order to find the fastest of the possible solutions to a problem. The properties are reachability properties, however, the target states are known to be reachable - the goal is to find the fastest path to the target state.
+
+Scalable models are always protocols.
+
 | Name | Target | Reference |
 |---|---|---|
 | FISCHER | Fischer’s mutual exclusion protocol | [AL92] |
@@ -28,28 +38,28 @@ The Xta Benchmark Suite consists of 26 problems, including 6 scaleable models (m
 
 The other models include protocols, hardware circuits and other case studies.
 
-| Name | Target | Reference |
-|---|---|---|
-| BANDO | Bang-Olufsen protocol | [link](https://www.it.uu.se/research/group/darts/uppaal/benchmarks/) |
-| BOCDP | Bang-Olufsen Collision Detection Protocol - original, faulty version | [HSLL97] |
-| BOCDPFIXED | Bang-Olufsen Collision Detection Protocol | [HSLL97] |
-| BAWCC | Business Agreement with Coordination Completion protocol | [RSV11] |
-| BAWCCENHANCED | Business Agreement with Coordination Completion protocol - enhanced version | [RSV11] |
-| SCHEDULE | Schedulability Framework model | [DILS10] |
-| STLS | Single Tracked Line Segment | [link](http://gki.informatik.uni-freiburg.de/tools/mcta/benchmarks.html) |
-| MUTEX | Mutual exclusion protocol | [Dier04] |
-| FAS | Fire Alarm System | [AWD14] |
-| SOLDIERS | The soldiers problem | [link](http://www.verify-it.de/v00/) |
-| ENGINE | A running engine | [link](http://www.verify-it.de/v00/) |
-| ANDOR | And-Or circuit | [CC05] |
-| BANGOLUFSEN | Bang-Olufsen protocol | [link](http://benchkit.cosyverif.org/) |
-| EXSITH | Sluice | [link](http://benchkit.cosyverif.org/) |
-| FLIPFLOP | Flip-flop circuit | [CC07] |
-| LATCH | Latch circuit | [And10] |
-| MALER | Maler’s Jobshop algorithm | [AM02] |
-| RCP | Root Connection Protocol | [KNS03] |
-| SIMOP | SIMOP Networked Automation System | [And10] |
-| SRLATCH | SR-latch circuit | [And10] |
+| Name | Category | System | Reference |
+|---|---|---|---|
+| BANDO | PROTOCOL | Bang-Olufsen protocol | [link](https://www.it.uu.se/research/group/darts/uppaal/benchmarks/) |
+| BOCDP | PROTOCOL | Bang-Olufsen Collision Detection Protocol - original, faulty version | [HSLL97] |
+| BOCDPFIXED |  PROTOCOL | Bang-Olufsen Collision Detection Protocol | [HSLL97] |
+| BAWCC | PROTOCOL | Business Agreement with Coordination Completion protocol | [RSV11] |
+| BAWCCENHANCED |  PROTOCOL | Business Agreement with Coordination Completion protocol - enhanced version | [RSV11] |
+| SCHEDULE | SYSTEM | Schedulability Framework model | [DILS10] |
+| STLS | SYSTEM | Single Tracked Line Segment | [link](http://gki.informatik.uni-freiburg.de/tools/mcta/benchmarks.html) |
+| MUTEX | PROTOCOL | Mutual exclusion protocol | [Dier04] |
+| FAS | SYSTEM | Fire Alarm System | [AWD14] |
+| SOLDIERS | PROBLEM | The soldiers problem | [link](http://www.verify-it.de/v00/) |
+| ENGINE | SYSTEM | A running engine | [link](http://www.verify-it.de/v00/) |
+| ANDOR | CIRCUIT | And-Or circuit | [CC05] |
+| BANGOLUFSEN | PROTOCOL | Bang-Olufsen protocol | [link](http://benchkit.cosyverif.org/) |
+| EXSITH | SMALL | Sluice | [link](http://benchkit.cosyverif.org/) |
+| FLIPFLOP |  CIRCUIT | Flip-flop circuit | [CC07] |
+| LATCH | CIRCUIT | Latch circuit | [And10] |
+| MALER | SYSTEM | Maler’s Jobshop algorithm | [AM02] |
+| RCP | PROTOCOL | Root Connection Protocol | [KNS03] |
+| SIMOP | SYSTEM | SIMOP Networked Automation System | [And10] |
+| SRLATCH | CIRCUIT | SR-latch circuit | [And10] |
 
 ## References
 
