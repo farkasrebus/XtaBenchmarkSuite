@@ -63,7 +63,7 @@ The other models include protocols, hardware circuits and other case studies.
 
 ## Read more
 
-This benchmark suit was introduced in [Towards Reliable Benchmarks of Timed Automata](https://inf.mit.bme.hu/sites/default/files/publications/fr_timed_benchmark.pdf)_ by Rebeka Farkas and Gábor Bergmann. The short paper explains motivations and the decisions behind this collection of models.
+This benchmark suit was introduced in [Towards Reliable Benchmarks of Timed Automata](https://inf.mit.bme.hu/sites/default/files/publications/fr_timed_benchmark.pdf). The short paper explains motivations and the decisions behind this collection of models.
 
 ```
 @inproceedings{farkas2018towards,
