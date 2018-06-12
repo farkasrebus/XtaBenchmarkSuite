@@ -15,11 +15,11 @@ The models originate form various sources, including benchmarks of timed automat
 
 ## Models
 
-The Xta Benchmark Suite consists of 26 problems, including 6 scaleable models (models representing protocols, where the number of participants can be increased) that can be scaled up by modifying the constant in the first line of the file.
+The Xta Benchmark Suite consists of 26 problems of 22 model types (some models are improved versions of others), including 6 scalable models (models representing protocols, where the number of participants can be increased) that can be scaled up by modifying the constant in the first line of the file.
 
 The models are categorized to the following classes:
 
-* Small models: there is only one automaton, containing only a few elements. They don't necessarily model real systems but can be used for developing and testing algorithms.
+* Small models: there is only one automaton, containing only a few elements. They don't necessarily model real systems but can be used for the development and testing of algorithms.
 * Protocols: the network mostly consists of similarly behaving automata. Safety properties are often described, such as mutual exclusion, collision detection, etc.
 * Circuits: hardware circuits consisting of gates, latches, etc. Properties to verify include absence of short-circuits, absence of hazards and conformance. Small models.
 * Systems: models representing complete systems. The automata in the network are diverse. The models can be rather complex with various properties to check.
