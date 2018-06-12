@@ -1,0 +1,1 @@
+A[] not ( andGate.consistent and orGate.consistent and a==false and b==true and t==true and x==true)

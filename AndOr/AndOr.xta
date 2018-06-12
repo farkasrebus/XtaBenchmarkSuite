@@ -11,90 +11,82 @@ const int dAnd_l = 3;
 const int dA_High_l = 13;
 const int dB_High_l = 7;
 
-
-chan xDown;
-chan bDown;
 chan xUp;
-chan aDown;
-chan tDown;
+chan xDown;
 chan bUp;
+chan bDown;
 chan aUp;
+chan aDown;
 chan tUp;
+chan tDown;
+
+bool a = true;
+bool b = true;
+bool t = true;
+bool x = true;
+
 
 process andGate() {
 	clock ckAnd;
 
 	state
-		And000 { ckAnd >= 0 },
-		And001 { ckAnd >= 0 && ckAnd <= dAnd_u },
-		And010 { ckAnd >= 0 },
-		And011 { ckAnd >= 0 && ckAnd <= dAnd_u },
-		And100 { ckAnd >= 0 },
-		And101 { ckAnd >= 0 && ckAnd <= dAnd_u },
-		And110 { ckAnd >= 0 && ckAnd <= dAnd_u },
-		And111 { ckAnd >= 0 };
+    consistent,
+    transient{ ckAnd <= dAnd_u };
 
-	init And111;
+	init consistent;
 
 	trans
-		And001 -> And101 { sync tUp?; assign ckAnd = 0; },
-		And011 -> And111 { sync tUp?; },
-		And100 -> And000 { sync tDown?; },
-		And110 -> And010 { sync tDown?; },
-		And000 -> And010 { sync bUp?; },
-		And100 -> And110 { sync bUp?; assign ckAnd = 0; },
-		And001 -> And011 { sync bUp?; assign ckAnd = 0; },
-		And101 -> And111 { sync bUp?; },
-		And010 -> And000 { sync bDown?; },
-		And111 -> And101 { sync bDown?; assign ckAnd = 0; },
-		And011 -> And010 { guard ckAnd >= dAnd_l; sync xDown!; },
-		And110 -> And111 { guard ckAnd >= dAnd_l; sync xUp!; },
-		And110 -> And100 { sync bDown?; },
-		And001 -> And000 { guard ckAnd >= dAnd_l; sync xDown!; },
-		And111 -> And011 { sync tDown?; assign ckAnd = 0; },
-		And101 -> And001 { sync tDown?; assign ckAnd = 0; },
-		And010 -> And110 { sync tUp?; assign ckAnd = 0; },
-		And011 -> And001 { sync bDown?; assign ckAnd = 0; },
-		And101 -> And100 { guard ckAnd >= dAnd_l; sync xDown!; },
-		And000 -> And100 { sync tUp?; };
+    consistent -> consistent {guard t==false; sync bUp?;},
+    consistent -> transient {guard t; sync bUp?; assign ckAnd = 0;},
+    consistent -> consistent {guard t==false; sync bDown?;},
+    consistent -> transient {guard t; sync bDown?; assign ckAnd = 0;},
+    consistent -> consistent {guard b==false; sync tUp?;},
+    consistent -> transient {guard b; sync tUp?; assign ckAnd = 0;},
+    consistent -> consistent {guard b==false; sync tDown?;},
+    consistent -> transient {guard b; sync tDown?; assign ckAnd = 0;},
+    transient -> consistent {guard t==x; sync bUp?;},  
+    transient -> transient {guard t!=x; sync bUp?; assign ckAnd = 0;},
+    transient -> consistent {guard x==false; sync bDown?;},
+    transient -> transient {guard x; sync bDown?; assign ckAnd = 0;},
+    transient -> consistent {guard b==x; sync tUp?;},  
+    transient -> transient {guard b!=x; sync tUp?; assign ckAnd = 0;},
+    transient -> consistent {guard x==false; sync tDown?;},
+    transient -> transient {guard x; sync tDown?; assign ckAnd = 0;},
+    transient -> consistent {guard ckAnd >= dAnd_l && t==false; sync xDown!; assign x = false;},
+    transient -> consistent {guard ckAnd >= dAnd_l && b==false; sync xDown!; assign x = false;},
+    transient -> consistent {guard ckAnd >= dAnd_l && t==true && b==true; sync xUp!; assign x = true;};
 }
 process orGate() {
 	clock ckOr;
+  
+  state
+    consistent,
+    transient{ ckOr <= dOr_u };
 
-	state
-		Or000 { ckOr >= 0 },
-		Or001 { ckOr >= 0 && ckOr <= dOr_u },
-		Or010 { ckOr >= 0 && ckOr <= dOr_u },
-		Or011 { ckOr >= 0 },
-		Or100 { ckOr >= 0 && ckOr <= dOr_u },
-		Or101 { ckOr >= 0 },
-		Or110 { ckOr >= 0 && ckOr <= dOr_u },
-		Or111 { ckOr >= 0 };
-
-	init Or111;
+	init consistent;
 
 	trans
-		Or101 -> Or111 { sync aUp?; },
-		Or101 -> Or001 { sync xDown?; assign ckOr = 0; },
-		Or100 -> Or000 { sync xDown?; },
-		Or000 -> Or010 { sync aUp?; assign ckOr = 0; },
-		Or001 -> Or101 { sync xUp?; },
-		Or010 -> Or110 { sync xUp?; assign ckOr = 0; },
-		Or111 -> Or011 { sync xDown?; },
-		Or100 -> Or110 { sync aUp?; assign ckOr = 0; },
-		Or001 -> Or000 { guard ckOr >= dOr_l; sync tDown!; },
-		Or000 -> Or100 { sync xUp?; assign ckOr = 0; },
-		Or001 -> Or011 { sync aUp?; },
-		Or110 -> Or100 { sync aDown?; assign ckOr = 0; },
-		Or010 -> Or011 { guard ckOr >= dOr_l; sync tUp!; },
-		Or100 -> Or101 { guard ckOr >= dOr_l; sync tUp!; },
-		Or111 -> Or101 { sync aDown?; },
-		Or011 -> Or001 { sync aDown?; assign ckOr = 0; },
-		Or110 -> Or111 { guard ckOr >= dOr_l; sync tUp!; },
-		Or011 -> Or111 { sync xUp?; },
-		Or110 -> Or010 { sync xDown?; assign ckOr = 0; },
-		Or010 -> Or000 { sync aDown?; };
+    consistent -> consistent {guard a==true; sync xUp?;},
+    consistent -> transient {guard a==false; sync xUp?; assign ckOr = 0;},
+    consistent -> consistent {guard a==true; sync xDown?;},
+    consistent -> transient {guard a==false; sync xDown?; assign ckOr = 0;},
+    consistent -> consistent {guard x==true; sync aUp?;},
+    consistent -> transient {guard x==false; sync aUp?; assign ckOr = 0;},
+    consistent -> consistent {guard x==true; sync aDown?;},
+    consistent -> transient {guard x==false; sync aDown?; assign ckOr = 0;},
+    transient -> consistent {guard t==true; sync xUp?;},  
+    transient -> transient {guard t==false; sync xUp?; assign ckOr = 0;},
+    transient -> consistent {guard t==a; sync xDown?;},  
+    transient -> transient {guard t!=a; sync xDown?; assign ckOr = 0;},
+    transient -> consistent {guard t==true; sync tUp?;},  
+    transient -> transient {guard t==false; sync tUp?; assign ckOr = 0;},
+    transient -> consistent {guard t==x; sync tDown?;},  
+    transient -> transient {guard t!=x; sync tDown?; assign ckOr = 0;},
+    transient -> consistent {guard ckOr >= dOr_l && a==true; sync tUp!; assign t = true;},
+    transient -> consistent {guard ckOr >= dOr_l && x==true; sync tUp!; assign t = true;},
+    transient -> consistent {guard ckOr >= dOr_l && a==false && x==false; sync tDown!; assign t = false;};
 }
+
 process input() {
 	clock cka;
 	clock ckb;
